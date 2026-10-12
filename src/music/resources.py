@@ -24,6 +24,9 @@ CONFIG_SCHEMA = {
 
 
 def catalog(config: Path) -> dict:
+    if not config.exists():
+        raise MusicError("E_CONFIG", "Configuration file is missing.", str(config),
+                         "Run python scripts/install_resources.py to create music.config.json, or point --config/MUSIC_CONFIG to an existing configuration file.")
     data = read_json(config)
     errors = list(Draft202012Validator(CONFIG_SCHEMA).iter_errors(data))
     if errors:

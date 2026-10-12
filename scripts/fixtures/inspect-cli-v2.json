@@ -1,0 +1,38 @@
+{
+  "version": 2,
+  "tool_version": "0.2.0",
+  "command": "inspect",
+  "ok": true,
+  "data": {
+    "version": 1,
+    "kind": "music.inspect",
+    "status": "passed",
+    "report_path": "D:\\Projects\\Tools\\code-to-music\\outputs\\acceptance-20261012-195010\\\u4e2d\u6587 \u8def\u5f84\\render A\\report.json",
+    "report_status": "passed",
+    "integrity_passed": true,
+    "artifacts": {
+      "listed": 14,
+      "checked": 14,
+      "missing": 0,
+      "changed": 0
+    },
+    "issues": [],
+    "audio_recheck": {
+      "passed": true,
+      "issues": [],
+      "sample_rate": 48000,
+      "channels": 2,
+      "frames": 562909,
+      "duration_seconds": 11.727270833333334,
+      "sample_peak_dbfs": -15.271381278726977,
+      "rms_dbfs": -36.043661791681274,
+      "integrated_lufs": -32.07,
+      "true_peak_dbtp": -15.27,
+      "clipping_samples": 0,
+      "final_50ms_peak_dbfs": null
+    },
+    "render_error_code": null,
+    "listening_verified": false
+  },
+  "error": null
+}

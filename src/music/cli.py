@@ -22,14 +22,14 @@ class Parser(argparse.ArgumentParser):
 
 
 def parser() -> Parser:
-    root = Parser(prog="music", description="Headless score -> sampled piano + VST3 -> checked WAV/stems/MIDI/report. JSON contract v2.")
+    root = Parser(prog="music", description="Headless score -> sampled piano + VST3 -> checked WAV/stems/MIDI/report. JSON contract v3.")
     root.add_argument("--version", action="version", version=__version__)
     commands = root.add_subparsers(dest="command", required=True)
     for command, description in [("doctor", "Verify assets, load each instrument and render a short offline probe."),
                                   ("instruments", "List configured licenses, capabilities, paths and recorded verification."),
                                   ("validate", "Validate score/schema/capabilities and asset hashes without loading native backends."),
                                   ("render", "Render in isolated native workers; fail on audio checks; never overwrite outputs."),
-                                  ("inspect", "Summarize outcome, verify artifact hashes and recheck master audio; full report stays on disk.")]:
+                                  ("inspect", "Summarize outcome and recorded instrument fingerprints, verify artifacts and recheck master audio; full report stays on disk.")]:
         child = commands.add_parser(command, help=description, description=description)
         child.add_argument("--json", action="store_true", help="Emit exactly one versioned JSON object to stdout.")
         child.add_argument("--config", type=Path, default=Path(os.environ.get("MUSIC_CONFIG", "music.config.json")), help="Config path (default MUSIC_CONFIG or cwd/music.config.json); asset paths relative to it.")
@@ -98,11 +98,11 @@ def main(argv=None) -> int:
         args = parser().parse_args(argv)
         data = execute(args)
         ok = data.get("healthy", True)
-        payload = dict(version=2, tool_version=__version__, command=args.command, ok=ok, data=data, error=None)
+        payload = dict(version=3, tool_version=__version__, command=args.command, ok=ok, data=data, error=None)
         exit_code = 0 if ok else 1
     except Exception as exc:
         error = exc if isinstance(exc, MusicError) else MusicError("E_INTERNAL", f"{type(exc).__name__}: {exc}", command or "music", "Inspect .music/logs and report this failure with the command/config.")
-        payload = dict(version=2, tool_version=__version__, command=command, ok=False, data=error.data, error=error.as_dict())
+        payload = dict(version=3, tool_version=__version__, command=command, ok=False, data=error.data, error=error.as_dict())
         exit_code = 2
         try:
             log_dir = Path.cwd() / ".music" / "logs"

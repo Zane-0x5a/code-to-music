@@ -4,7 +4,7 @@ Agent 修改 JSON 乐谱，运行 `music validate` 和 `music render`，得到�
 
 这是供独立审查的第一阶段，尚未经过听感确认。实际验收状态、证据和限制见 `docs/STAGE_ONE.md`；不要把可加载的任意插件当成已验证音源。
 
-首轮审查后的纠偏版本为 **0.2.0 / CLI JSON v2**：inspect 默认返回单读摘要与完整报告路径，失败报告不会返回成功。0.1.0 的 `data.report` / 逐文件 `data.integrity` 回显已移除；接入方须按 `version=2` 与 `data.status` 读取。旧 CLI v1 schema 保留用于历史证据；乐谱和完整渲染报告仍为 v1。
+当前纠偏版本为 **0.3.0 / CLI JSON v3**：inspect 返回状态、本次选用音源的 ID/版本/资产 SHA-256 和完整报告路径，失败报告不会返回成功。空事件或全部 mute 的作品以 `E_SCORE` 提前拒绝；主 WAV 始终检查非静音。0.1.0 的 `data.report` / 逐文件 `data.integrity` 回显已移除；接入方须按 `version=3` 与 `data.status` 读取。旧 CLI v1/v2 schema 原样保留用于历史证据；新增 instruments 使用 inspect 摘要 v2，严格校验接入方须切换到 cli-v3.json；乐谱和完整渲染报告仍为 v1。复审纠偏记录见 [REVIEW_FOLLOWUP.md](docs/REVIEW_FOLLOWUP.md)。
 
 ## 安装：Windows x64
 
@@ -36,11 +36,11 @@ python -m venv .venv
 | `music validate score.json --json` | 乐谱 schema、语义、音源引用与哈希；不加载 native 后端 |
 | `music render score.json --output outputs\new --dry-run --json` | 解析资源和输出计划，拒绝已有目录；不创建输出 |
 | `music render score.json --output outputs\new --json` | 离线渲染并检查；原子发布新目录 |
-| `music inspect outputs\new --json` | 返回状态摘要和 report_path；只有报告通过、产物完整、音频复查通过才成功 |
+| `music inspect outputs\new --json` | 返回状态、本次选用音源指纹和 report_path；只有报告通过、产物完整、主音频复查通过才成功 |
 
 各子命令接受 `--config PATH`。默认 `MUSIC_CONFIG` 环境变量或当前工作目录的 `music.config.json`；配置内相对路径以配置文件所在目录为基准。路径可有空格和中文；调用 shell 时用引号或参数数组。
 
-`--json` 的 stdout 恰好一个 JSON 对象：`version/tool_version/command/ok/data/error`，当前 `version=2`，schema 为 `src/music/schemas/cli-v2.json`。成功退出 0；`doctor` 健康检查失败退出 1；输入/渲染/inspect 错误退出 2。失败包含稳定错误码、受影响资源、原因、下一步；inspect 的诊断摘要保留在 `data`，未检查的完整性和音频为 null，不能视为通过。命令帮助保留普通文本。`validate` 成功只代表解析/资源校验成功；`doctor` 和 `render` 才实际触发 native 音源。
+`--json` 的 stdout 恰好一个 JSON 对象：`version/tool_version/command/ok/data/error`，当前 `version=3`，schema 为 `src/music/schemas/cli-v3.json`。成功退出 0；`doctor` 健康检查失败退出 1；输入/渲染/inspect 错误退出 2。失败包含稳定错误码、受影响资源、原因、下一步；inspect 的诊断摘要保留在 `data`，未检查的完整性和音频为 null，不能视为通过。命令帮助保留普通文本。`validate` 成功只代表解析/资源校验成功；`doctor` 和 `render` 才实际触发 native 音源。
 
 ## 目录、缓存与隐私边界
 
@@ -61,6 +61,8 @@ python -m venv .venv
 ```
 
 脚本在新的中文/空格路径执行实际 CLI；包含双音源渲染、重渲染 SHA-256 对比、改音高确认对应分轨变化、MIDI、缺资源、非法 schema、不支持的 CC、坏 DLL、缺后端、已有输出与 dry-run 保护、零帧拒绝、inspect 对真实失败/缺失/损坏产物的判定、摘要契约、证据路径、音高/力度端点和踏板差分。完整证据落到 `outputs/acceptance-*/summary.json`。近干净环境的执行命令见阶段记录。
+
+0.3.0 另覆盖音源指纹与超长元数据的明确省略、失败/未完成报告的快照语义、整份作品空事件/全部 mute 的拒绝、主 WAV 静音复查、单条无音符轨仍可渲染，以及缺配置的安装指引；旧 v2 响应继续符合旧 schema，新形状必须使用 CLI v3 / inspect v2。
 
 ## 技术边界与许可
 

@@ -1,5 +1,6 @@
 """Inspect outcome first; return a bounded summary and keep the full report on disk."""
 from importlib.resources import files
+import json
 from pathlib import Path
 import wave
 from jsonschema import Draft202012Validator
@@ -7,14 +8,44 @@ from .audio import measure
 from .errors import MusicError, read_json, fingerprint
 
 
+INSTRUMENT_SUMMARY_BYTES = 2048
+
+
+def instrument_summary(instruments: list[dict]) -> dict:
+    """Project recorded identity/hashes, never current asset paths or verification."""
+    result = dict(source="render_report", current_assets_verified=False,
+                  total=len(instruments), omitted=len(instruments), items=[])
+
+    def fits():
+        return len(json.dumps(result).encode("utf-8")) <= INSTRUMENT_SUMMARY_BYTES
+
+    for instrument in instruments:
+        item = dict(id=instrument["id"], version=instrument["version"], assets={},
+                    assets_total=len(instrument["assets"]), assets_omitted=len(instrument["assets"]))
+        result["items"].append(item)
+        result["omitted"] -= 1
+        if not fits():
+            result["items"].pop()
+            result["omitted"] += 1
+            continue
+        for name, asset in instrument["assets"].items():
+            item["assets"][name] = asset["sha256"]
+            item["assets_omitted"] -= 1
+            if not fits():
+                del item["assets"][name]
+                item["assets_omitted"] += 1
+    return result
+
+
 def inspect_artifact(path: Path) -> dict:
     if path.is_dir():
         path = path / "report.json"
     path = path.resolve()
-    result = dict(version=1, kind="music.inspect", status="invalid_report", report_path=str(path),
+    result = dict(version=2, kind="music.inspect", status="invalid_report", report_path=str(path),
                   report_status=None, integrity_passed=None,
                   artifacts=dict(listed=0, checked=0, missing=0, changed=0),
-                  issues=[], audio_recheck=None, render_error_code=None, listening_verified=False)
+                  issues=[], audio_recheck=None, render_error_code=None, listening_verified=False,
+                  instruments=None)
 
     def fail(code: str, message: str, resource: str, fix: str, status: str):
         result["status"] = status
@@ -35,6 +66,7 @@ def inspect_artifact(path: Path) -> dict:
              "Use an unmodified music.render v1 report; restore it or render again.", "invalid_report")
     result["report_status"] = report["status"]
     result["artifacts"]["listed"] = len(report["artifacts"])
+    result["instruments"] = instrument_summary(report["instruments"])
     if report["status"] == "failed":
         original = report["error"]
         result["render_error_code"] = original["code"]
@@ -85,7 +117,7 @@ def inspect_artifact(path: Path) -> dict:
              "artifact_missing" if missing else "artifact_changed")
     try:
         result["audio_recheck"] = measure(root / "master.wav", report["audio"]["frames"],
-                                          report["audio"]["sample_rate"], report["audio"]["sample_peak_dbfs"] is not None)
+                                          report["audio"]["sample_rate"])
     except (OSError, EOFError, ValueError, wave.Error) as exc:
         fail("E_ARTIFACT", f"Master WAV cannot be decoded: {exc}", str(root / "master.wav"),
              "Restore the original PCM24 stereo WAV or render again.", "artifact_invalid")

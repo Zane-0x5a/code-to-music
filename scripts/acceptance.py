@@ -10,7 +10,7 @@ import time
 from datetime import datetime
 import numpy as np
 import mido
-from music.audio import read_wav
+from music.audio import read_wav, write_wav, measure
 from music.backend import run_backend
 from music.errors import MusicError, read_json, write_json, fingerprint
 from music.resources import catalog
@@ -27,7 +27,8 @@ def main():
     directory.mkdir(parents=True)
     summary = dict(version=1, status="running", python=sys.executable, evidence_directory=str(evidence), commands=[], checks=[])
     config = ROOT / "music.config.json"
-    envelope_schema = read_json(Path(str(files("music").joinpath("schemas/cli-v2.json"))))
+    envelope_schema = read_json(Path(str(files("music").joinpath("schemas/cli-v3.json"))))
+    legacy_schema = read_json(Path(str(files("music").joinpath("schemas/cli-v2.json"))))
     report_schema = read_json(Path(str(files("music").joinpath("schemas/report-v1.json"))))
     source = read_json(ROOT / "examples/first-score.json")
     score_path = directory / "短 乐谱.json"
@@ -44,7 +45,7 @@ def main():
                       stderr=process.stderr.decode("utf-8", errors="replace"))
         summary["commands"].append(record)
         write_json(evidence / "summary.json", summary)
-        assert result["version"] == 2 and result["ok"] == success, record
+        assert result["version"] == 3 and result["tool_version"] == "0.3.0" and result["ok"] == success, record
         assert process.returncode == (0 if success else 2), record
         if expected_code:
             assert result["error"]["code"] == expected_code, record
@@ -52,7 +53,27 @@ def main():
         print(f"{args[0]}: {'OK' if success else expected_code} ({record['elapsed_seconds']}s)", flush=True)
         return result
 
+    def check_instruments(inspection, report):
+        snapshot = inspection["instruments"]
+        assert snapshot["source"] == "render_report" and snapshot["current_assets_verified"] is False
+        assert snapshot["total"] == len(report["instruments"]) and snapshot["omitted"] == 0
+        expected = [dict(id=i["id"], version=i["version"],
+                         assets={name: asset["sha256"] for name, asset in i["assets"].items()},
+                         assets_total=len(i["assets"]), assets_omitted=0) for i in report["instruments"]]
+        assert snapshot["items"] == expected
+        assert len(json.dumps(snapshot).encode("utf-8")) <= 2048
+
     try:
+        historical_inspect = read_json(ROOT/"scripts/fixtures/inspect-cli-v2.json")
+        Draft202012Validator(legacy_schema).validate(historical_inspect)
+        assert not Draft202012Validator(envelope_schema).is_valid(historical_inspect)
+        summary["checks"].append(dict(name="unchanged CLI v2 schema validates captured 0.2.0 inspection; CLI v3 stays distinct", passed=True))
+        missing_config = command(["doctor"], "E_CONFIG", directory/"missing config.json", success=False)
+        assert "scripts/install_resources.py" in missing_config["error"]["fix"]
+        assert "--config" in missing_config["error"]["fix"] and "MUSIC_CONFIG" in missing_config["error"]["fix"]
+        missing_score = command(["validate", str(directory/"missing score.json")], "E_INPUT", success=False)
+        assert missing_score["error"]["fix"] == "Create readable UTF-8 JSON with unique keys."
+        summary["checks"].append(dict(name="missing config has setup guidance; missing score retains input semantics", passed=True))
         command(["doctor"])
         command(["instruments"])
         command(["validate", str(score_path)])
@@ -61,14 +82,22 @@ def main():
         assert not dry.exists()
         output_a, output_b = directory / "render A", directory / "render B"
         command(["render", str(score_path), "--output", str(output_a)])
-        inspected = command(["inspect", str(output_a)])
+        # Inspect must use this render's snapshot, without consulting current config/assets.
+        inspected = command(["inspect", str(output_a)], config_path=directory/"missing config.json")
         inspection = inspected["data"]
+        assert inspection["version"] == 2
+        mislabeled = copy.deepcopy(inspected)
+        mislabeled["version"], mislabeled["data"]["version"] = 2, 1
+        assert not Draft202012Validator(legacy_schema).is_valid(mislabeled)
+        summary["checks"].append(dict(name="instrument summary uses CLI v3 / inspect v2; legacy strict contract rejects mislabeled shape", passed=True))
         assert inspection["status"] == "passed" and inspection["report_status"] == "passed"
         assert inspection["integrity_passed"] and inspection["audio_recheck"]["passed"]
         assert inspection["report_path"] == str(output_a/"report.json")
-        assert "report" not in inspection and "score" not in inspection and "instruments" not in inspection
+        assert "report" not in inspection and "score" not in inspection
+        check_instruments(inspection, read_json(output_a/"report.json"))
         assert len(json.dumps(inspected).encode("utf-8")) < 4096
         summary["checks"].append(dict(name="inspect gives bounded passing summary and full-report pointer", passed=True))
+        summary["checks"].append(dict(name="inspect includes selected instrument IDs, versions and every asset SHA-256 without current config", passed=True))
         Draft202012Validator(report_schema).validate(read_json(output_a/"report.json"))
         command(["render", str(score_path), "--output", str(output_b)])
         for name in ["master.wav", "stems/piano.wav", "stems/synth.wav", "score.mid"]:
@@ -120,6 +149,21 @@ def main():
         command(["render", str(tiny_path), "--output", str(tiny_output)], "E_SCORE", success=False)
         assert not tiny_output.exists()
         summary["checks"].append(dict(name="zero-frame score rejected before native load or output creation", passed=True))
+        for case in ["empty events", "all muted"]:
+            silent = copy.deepcopy(source)
+            for track in silent["tracks"]:
+                if case == "empty events":
+                    track["events"] = []
+                else:
+                    track["mute"] = True
+            silent_path = directory/f"{case}.json"
+            write_json(silent_path, silent)
+            silent_output = directory/f"{case} render"
+            command(["validate", str(silent_path)], "E_SCORE", success=False)
+            command(["render", str(silent_path), "--dry-run", "--output", str(silent_output)], "E_SCORE", success=False)
+            rejected = command(["render", str(silent_path), "--output", str(silent_output)], "E_SCORE", success=False)
+            assert "unmuted" in rejected["error"]["fix"] and not silent_output.exists()
+            summary["checks"].append(dict(name=f"{case}: whole silent work rejected before output creation", passed=True))
         invalid = copy.deepcopy(source)
         invalid["tracks"][0]["events"][1]["velocity"] = 200
         invalid_path = directory / "schema error.json"
@@ -158,11 +202,46 @@ def main():
         assert failed_inspect["data"]["report_status"] == "failed"
         assert failed_inspect["data"]["integrity_passed"] is None
         assert failed_inspect["data"]["audio_recheck"] is None
+        check_instruments(failed_inspect["data"], read_json(failure_report))
         summary["checks"].append(dict(name="inspect rejects real failed render with empty artifacts", passed=True, report_path=str(failure_report)))
+        summary["checks"].append(dict(name="failed render retains recorded selection without claiming asset verification", passed=True))
         # Mutate a copy of a real passing render; leave original evidence intact.
         damaged = directory/"damaged artifact"
         shutil.copytree(output_a, damaged)
         original_master = (damaged/"master.wav").read_bytes()
+        # A historical/modified passed report must not exempt a silent master from QA.
+        silent_audio = np.zeros((2, read_json(damaged/"report.json")["audio"]["frames"]))
+        write_wav(damaged/"master.wav", silent_audio, 48000)
+        silent_report = read_json(damaged/"report.json")
+        silent_report["audio"] = measure(damaged/"master.wav", silent_audio.shape[1], 48000, audible=False)
+        for artifact in silent_report["artifacts"]:
+            if artifact["path"] == "master.wav":
+                artifact.update(sha256=fingerprint(damaged/"master.wav"), bytes=(damaged/"master.wav").stat().st_size)
+        write_json(damaged/"report.json", silent_report)
+        silent_inspect = command(["inspect", str(damaged)], "E_AUDIO_QA", success=False)
+        assert silent_inspect["data"]["integrity_passed"] and not silent_inspect["data"]["audio_recheck"]["passed"]
+        summary["checks"].append(dict(name="silent master cannot pass inspect even with matching hash and saved passing QA", passed=True))
+        (damaged/"master.wav").write_bytes(original_master)
+        write_json(damaged/"report.json", read_json(output_a/"report.json"))
+
+        oversized = read_json(damaged/"report.json")
+        oversized["instruments"][0]["version"] = "large version " * 500
+        oversized["instruments"][1]["assets"]["large asset " * 500] = copy.deepcopy(oversized["instruments"][1]["assets"]["plugin"])
+        write_json(damaged/"report.json", oversized)
+        bounded = command(["inspect", str(damaged)])
+        snapshot = bounded["data"]["instruments"]
+        assert len(json.dumps(snapshot).encode("utf-8")) <= 2048 and snapshot["total"] == 2
+        assert snapshot["omitted"] == 1 and len(snapshot["items"]) == 1
+        assert snapshot["items"][0]["assets_omitted"] == 1
+        assert snapshot["items"][0]["assets_total"] == 4
+        assert len(json.dumps(bounded).encode("utf-8")) < 4096
+        summary["checks"].append(dict(name="oversized recorded metadata has bounded projection and explicit omission counts", passed=True))
+        oversized["instruments"][0]["assets"]["library"]["sha256"] = "invalid hash"
+        write_json(damaged/"report.json", oversized)
+        malformed = command(["inspect", str(damaged)], "E_ARTIFACT", success=False)
+        assert malformed["data"]["instruments"] is None
+        summary["checks"].append(dict(name="invalid instrument metadata is unknown, not a verified or empty selection", passed=True))
+        write_json(damaged/"report.json", read_json(output_a/"report.json"))
         (damaged/"master.wav").unlink()
         missing_inspect = command(["inspect", str(damaged)], "E_ARTIFACT_MISSING", success=False)
         assert missing_inspect["data"]["status"] == "artifact_missing" and not missing_inspect["data"]["integrity_passed"]
@@ -183,7 +262,9 @@ def main():
         write_json(damaged/"report.json", damaged_report)
         incomplete = command(["inspect", str(damaged)], "E_RENDER_INCOMPLETE", success=False)
         assert incomplete["data"]["status"] == "render_incomplete" and incomplete["data"]["integrity_passed"] is None
+        check_instruments(incomplete["data"], damaged_report)
         summary["checks"].append(dict(name="inspect rejects incomplete render without asserting integrity", passed=True))
+        summary["checks"].append(dict(name="incomplete render exposes only recorded instrument selection", passed=True))
         damaged_report["status"] = "passed"
         damaged_report["artifacts"] = []
         write_json(damaged/"report.json", damaged_report)
@@ -193,6 +274,7 @@ def main():
         (damaged/"report.json").unlink()
         absent_report = command(["inspect", str(damaged)], "E_ARTIFACT_MISSING", success=False)
         assert absent_report["data"]["report_status"] is None and absent_report["data"]["integrity_passed"] is None
+        assert absent_report["data"]["instruments"] is None
         shutil.rmtree(damaged)
         summary["checks"].append(dict(name="inspect distinguishes missing, changed and invalid reports without false success", passed=True))
         absent_backend = copy.deepcopy(absolute_config)
@@ -223,6 +305,17 @@ def main():
             assert Path(track["backend"]["command"][-1]).is_file()
             assert Path(track["backend"]["log"]).is_file()
         summary["checks"].append(dict(name="backend evidence paths exist only when intermediates retained", passed=True))
+        single_empty = copy.deepcopy(source)
+        single_empty["tracks"][1]["events"] = []
+        single_empty_path = directory/"one empty track.json"
+        write_json(single_empty_path, single_empty)
+        single_empty_output = directory/"one empty track render"
+        command(["render", str(single_empty_path), "--output", str(single_empty_output)])
+        command(["inspect", str(single_empty_output)])
+        single_empty_report = read_json(single_empty_output/"report.json")
+        assert single_empty_report["tracks"][1]["backend"]["skipped"] == "muted or no notes"
+        assert single_empty_report["tracks"][1]["qa"]["passed"] and single_empty_report["audio"]["passed"]
+        summary["checks"].append(dict(name="one empty track remains legal when the whole work is audible", passed=True))
         # Real timeout: Windows venv launchers spawn a child interpreter. Prove
         # the whole native tree is gone, rather than just the launcher exiting.
         timeout_dir = evidence / "native-timeout"

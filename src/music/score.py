@@ -59,6 +59,10 @@ def load_score(path: Path) -> Score:
                          "Increase length_beats or output.tail_seconds to produce at least one frame at the selected sample_rate.")
     if frames / output["sample_rate"] > 300:
         raise MusicError("E_LIMIT", "Duration exceeds the stage-one 300-second limit.", str(path), "Split the score into sections.")
+    if not any(not track.get("mute", False) and any(event["type"] == "note" for event in track["events"])
+               for track in data["tracks"]):
+        raise MusicError("E_SCORE", "Score has no notes on unmuted tracks; the whole work would be silent.", str(path),
+                         "Add a note event to an unmuted track, or unmute a track containing notes.")
     return Score(data, output["sample_rate"], frames, spb, output)
 
 

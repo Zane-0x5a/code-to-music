@@ -31,10 +31,10 @@ Salamander SF2 自带发行说明明确省略 SFZ 的 `amp_veltrack`、踏板/�
 
 Surge 在状态恢复后异步加载 patch；直接紧接着离线渲染会静音。适配器先做丢弃的短音符探针，等待真实非静音响应（15 秒上限），随后应用固定 oscillator retrigger / drift 设置，并将 `A Velocity > VCA Gain` 的归一化值设为 `0.5`（-24dB 力度灵敏度）。原始 init patch 的振幅不随 MIDI 力度变化；当前固定 profile 已实际验证力度响应。宿主 reset 单独使用仍留下首次渲染差异；适配器再丢弃至少 2 秒音频，要求最后 100ms 峰值不超过 `1e-12`，最多推进 10 秒音频，失败则拒绝正式渲染。实际 MIDI 随后从零开始。这些是有上限的真实音频检查；重复性仍由独立进程的重渲染和分轨比较验证，不由初始化步骤本身保证。
 
-宿主兼容层 `src/music/backends/surge.py` 严格要求 Pedalboard 0.9.26。该版本即使传入空参数表，也会枚举全部插件参数；普通 `raw_state` 赋值也触发枚举，实测耗时超过 90 秒。独立 worker 加载时临时替换 `ExternalPlugin.__set_initial_parameter_values__`，在 `finally` 中恢复；通过 `object.__setattr__` 设置 native raw_state 描述符，再为三个准入控制器创建 `AudioProcessorParameter(search_steps=1)` 并写入归一化值。这是明确的版本耦合，不支持同进程并发宿主。当前机器 0.2.0 验收的 doctor 为 4.79 秒、双音源示例首次 render 为 6.503 秒；不是性能保证。升级 Pedalboard 前必须审查该兼容层并重新验收。
+宿主兼容层 `src/music/backends/surge.py` 严格要求 Pedalboard 0.9.26。该版本即使传入空参数表，也会枚举全部插件参数；普通 `raw_state` 赋值也触发枚举，实测耗时超过 90 秒。独立 worker 加载时临时替换 `ExternalPlugin.__set_initial_parameter_values__`，在 `finally` 中恢复；通过 `object.__setattr__` 设置 native raw_state 描述符，再为三个准入控制器创建 `AudioProcessorParameter(search_steps=1)` 并写入归一化值。这是明确的版本耦合，不支持同进程并发宿主。当前机器 0.3.0 验收的 doctor 为 5.013 秒、双音源示例首次 render 为 6.518 秒；不是性能保证。升级 Pedalboard 前必须审查该兼容层并重新验收。
 
 目前只准入这个 init profile。任意 factory preset、FXP、wavetable 依赖、插件参数自动化、程序切换、pitch bend和其他演奏法尚未实际验证；乐谱层拒绝未知字段和未准入 CC。用户分享插件目录不自动获得支持状态。
 
 下一次扩展须先做真实无 GUI 加载、MIDI 演奏、离线渲染、重复运行，并记录版本、许可、资产指纹和边界。`resources/download-manifest.json` 保留固定源地址与归档 SHA-256；这些指纹是本次 HTTPS 下载后记录的本地锁定值，不是上游签名。项目不提交二进制音源、插件或安装归档。
 
-重复性要求：钢琴 WAV 和 MIDI 必须逐字节一致；Surge 与含 Surge 的主输出必须逐采样差异不超过 `4/2^23`（4 个 PCM24 量化单位，约 -126.4 dBFS 满幅差异上限）。最新纠偏验收 `outputs/acceptance-20261012-195010/summary.json` 实测 Surge 和主输出最大差异均为 1 个量化单位；保留两次不同 SHA-256，不把技术容差通过写成逐字节一致。改变乐谱时须证明目标分轨改变、未改分轨仍落在该固定容差内。
+重复性要求：钢琴 WAV 和 MIDI 必须逐字节一致；Surge 与含 Surge 的主输出必须逐采样差异不超过 `4/2^23`（4 个 PCM24 量化单位，约 -126.4 dBFS 满幅差异上限）。最新纠偏验收 `outputs/acceptance-20261012-201929/summary.json` 实测 Surge 和主输出最大差异均为 1 个量化单位；保留两次不同 SHA-256，不把技术容差通过写成逐字节一致。改变乐谱时须证明目标分轨改变、未改分轨仍落在该固定容差内。

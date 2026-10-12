@@ -86,8 +86,8 @@ def render(score: Score, score_path: Path, config_path: Path, instruments: dict,
                 write_midi(wav_path.with_suffix(".mid"), score, [track])
         master_path = stage / "master.wav"
         write_wav(master_path, mix, score.sample_rate)
-        audible = any(not t.get("mute", False) and any(e["type"] == "note" for e in t["events"]) for t in score.data["tracks"])
-        report["audio"] = measure(master_path, score.frames, score.sample_rate, audible=audible)
+        # Only individual stems may be intentionally silent; the whole work must pass non-silence QA.
+        report["audio"] = measure(master_path, score.frames, score.sample_rate)
         decoded, _ = read_wav(master_path)
         decoded_sum = np.zeros_like(decoded)
         for stem in stems:

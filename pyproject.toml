@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "code-to-music"
-version = "0.2.0"
+version = "0.3.0"
 description = "Versioned scores, real instruments, headless offline audio for coding agents"
 requires-python = ">=3.11"
 dependencies = ["numpy==2.5.4", "jsonschema==4.26.0", "mido==1.3.3", "pedalboard==0.9.26"]
