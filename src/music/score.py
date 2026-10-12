@@ -54,6 +54,9 @@ def load_score(path: Path) -> Score:
     output.update(data.get("output", {}))
     spb = 60 / data["tempo"]
     frames = round((data["length_beats"] * spb + output["tail_seconds"]) * output["sample_rate"])
+    if frames < 1:
+        raise MusicError("E_SCORE", "Score duration rounds to zero audio frames.", str(path),
+                         "Increase length_beats or output.tail_seconds to produce at least one frame at the selected sample_rate.")
     if frames / output["sample_rate"] > 300:
         raise MusicError("E_LIMIT", "Duration exceeds the stage-one 300-second limit.", str(path), "Split the score into sections.")
     return Score(data, output["sample_rate"], frames, spb, output)

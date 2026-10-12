@@ -10,6 +10,7 @@ class MusicError(Exception):
     message: str
     resource: str
     fix: str
+    data: dict | None = None
 
     def as_dict(self) -> dict:
         return dict(code=self.code, message=self.message, resource=self.resource, fix=self.fix)

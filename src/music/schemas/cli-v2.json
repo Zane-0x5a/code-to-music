@@ -1,0 +1,240 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:code-to-music:cli:2",
+  "title": "CLI envelope v2 with bounded inspection summary v1",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "version",
+    "tool_version",
+    "command",
+    "ok",
+    "data",
+    "error"
+  ],
+  "properties": {
+    "version": {
+      "const": 2
+    },
+    "tool_version": {
+      "type": "string"
+    },
+    "command": {
+      "enum": [
+        null,
+        "doctor",
+        "instruments",
+        "validate",
+        "render",
+        "inspect"
+      ]
+    },
+    "ok": {
+      "type": "boolean"
+    },
+    "data": {
+      "type": [
+        "object",
+        "null"
+      ]
+    },
+    "error": {
+      "oneOf": [
+        {
+          "type": "null"
+        },
+        {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "code",
+            "message",
+            "resource",
+            "fix"
+          ],
+          "properties": {
+            "code": {
+              "type": "string",
+              "pattern": "^E_[A-Z_]+$"
+            },
+            "message": {
+              "type": "string"
+            },
+            "resource": {
+              "type": "string"
+            },
+            "fix": {
+              "type": "string"
+            }
+          }
+        }
+      ]
+    }
+  },
+  "$defs": {
+    "inspection": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "version",
+        "kind",
+        "status",
+        "report_path",
+        "report_status",
+        "integrity_passed",
+        "artifacts",
+        "issues",
+        "audio_recheck",
+        "render_error_code",
+        "listening_verified"
+      ],
+      "properties": {
+        "version": {
+          "const": 1
+        },
+        "kind": {
+          "const": "music.inspect"
+        },
+        "status": {
+          "enum": [
+            "passed",
+            "render_failed",
+            "render_incomplete",
+            "artifact_missing",
+            "artifact_changed",
+            "invalid_report",
+            "artifact_invalid",
+            "audio_failed"
+          ]
+        },
+        "report_path": {
+          "type": "string"
+        },
+        "report_status": {
+          "enum": [
+            null,
+            "passed",
+            "failed",
+            "rendering"
+          ]
+        },
+        "integrity_passed": {
+          "type": [
+            "boolean",
+            "null"
+          ]
+        },
+        "artifacts": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "listed",
+            "checked",
+            "missing",
+            "changed"
+          ],
+          "properties": {
+            "listed": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "checked": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "missing": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "changed": {
+              "type": "integer",
+              "minimum": 0
+            }
+          }
+        },
+        "issues": {
+          "type": "array",
+          "maxItems": 8,
+          "items": {
+            "type": "string",
+            "maxLength": 300
+          }
+        },
+        "audio_recheck": {
+          "type": [
+            "object",
+            "null"
+          ]
+        },
+        "render_error_code": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "listening_verified": {
+          "const": false
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "inspect"
+          },
+          "data": {
+            "type": "object"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "$ref": "#/$defs/inspection"
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "command": {
+            "const": "inspect"
+          },
+          "ok": {
+            "const": true
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "data": {
+            "type": "object",
+            "properties": {
+              "status": {
+                "const": "passed"
+              },
+              "report_status": {
+                "const": "passed"
+              },
+              "integrity_passed": {
+                "const": true
+              },
+              "audio_recheck": {
+                "type": "object",
+                "properties": {
+                  "passed": {
+                    "const": true
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  ]
+}

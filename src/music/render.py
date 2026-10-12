@@ -16,11 +16,33 @@ from .midi import write_midi
 from .score import Score, timeline
 
 
-def render(score: Score, score_path: Path, config_path: Path, instruments: dict, destination: Path) -> dict:
+def check_destination(destination: Path) -> None:
     destination = destination.absolute()
-    if destination.exists():
+    if destination.exists() or destination.is_symlink():
         raise MusicError("E_OUTPUT_EXISTS", "Output directory already exists; nothing was overwritten.", str(destination),
                          "Choose a fresh --output directory; inspect the existing report before removing old output.")
+
+
+def relocate_evidence(report: dict, stage: Path, destination: Path) -> None:
+    """Only retain references to evidence that survives publication/failure."""
+    for track in report["tracks"]:
+        backend = track["backend"]
+        if not backend.get("command"):
+            continue
+        request = Path(backend["command"][-1])
+        # A publication race may fail after references were mapped to output.
+        origin = stage if request.is_relative_to(stage) else Path(report["output"]["directory"])
+        request_relative = request.relative_to(origin)
+        retained = (stage / request_relative).is_file()
+        backend["intermediates_retained"] = retained
+        backend["command"] = [*backend["command"][:-1], str(destination / request_relative)] if retained else None
+        log_relative = Path(backend["log"]).relative_to(origin)
+        backend["log"] = str(destination / log_relative) if (stage / log_relative).is_file() else None
+
+
+def render(score: Score, score_path: Path, config_path: Path, instruments: dict, destination: Path) -> dict:
+    destination = destination.absolute()
+    check_destination(destination)
     try:
         destination.parent.mkdir(parents=True, exist_ok=True)
         stage = Path(tempfile.mkdtemp(prefix=".music-stage-", dir=destination.parent))
@@ -86,11 +108,7 @@ def render(score: Score, score_path: Path, config_path: Path, instruments: dict,
         if not score.output["intermediates"]:
             shutil.rmtree(stage / "intermediates", ignore_errors=True)
         # Keep references meaningful after the atomic rename.
-        for track_report in report["tracks"]:
-            backend = track_report["backend"]
-            if "log" in backend:
-                backend["log"] = str(destination / Path(backend["log"]).relative_to(stage)) if score.output["intermediates"] else None
-                backend["command"][-1] = str(destination / Path(backend["command"][-1]).relative_to(stage))
+        relocate_evidence(report, stage, destination)
         for path in sorted(stage.rglob("*")):
             if path.is_file():
                 report["artifacts"].append(dict(path=path.relative_to(stage).as_posix(), sha256=fingerprint(path), bytes=path.stat().st_size))
@@ -107,6 +125,7 @@ def render(score: Score, score_path: Path, config_path: Path, instruments: dict,
         report["error"] = exc.as_dict() if isinstance(exc, MusicError) else dict(code="E_RENDER", message=str(exc))
         failed = config_path.parent / ".music" / "logs" / uuid.uuid4().hex
         failed.parent.mkdir(parents=True, exist_ok=True)
+        relocate_evidence(report, stage, failed)
         write_json(stage / "report.json", report)
         shutil.move(str(stage), failed)
         if isinstance(exc, MusicError):

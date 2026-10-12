@@ -4,6 +4,8 @@ Agent 修改 JSON 乐谱，运行 `music validate` 和 `music render`，得到�
 
 这是供独立审查的第一阶段，尚未经过听感确认。实际验收状态、证据和限制见 `docs/STAGE_ONE.md`；不要把可加载的任意插件当成已验证音源。
 
+首轮审查后的纠偏版本为 **0.2.0 / CLI JSON v2**：inspect 默认返回单读摘要与完整报告路径，失败报告不会返回成功。0.1.0 的 `data.report` / 逐文件 `data.integrity` 回显已移除；接入方须按 `version=2` 与 `data.status` 读取。旧 CLI v1 schema 保留用于历史证据；乐谱和完整渲染报告仍为 v1。
+
 ## 安装：Windows x64
 
 需要 Python 3.11+（实际验证 3.13.7）、FFmpeg 在 PATH、约 5 GB 项目磁盘空间。锁定的 Windows x64 音源下载约 600 MB。所有命令在仓库根目录运行；安装不改系统音频设置或全局插件目录。
@@ -32,13 +34,13 @@ python -m venv .venv
 | `music doctor --json` | 校验资源 SHA-256，实际加载两个音源并离线演奏 C4，检查 FFmpeg、运行时和权限 |
 | `music instruments --json` | 音源来源、许可、版本、路径、能力、记录的验证状态；不会演奏 |
 | `music validate score.json --json` | 乐谱 schema、语义、音源引用与哈希；不加载 native 后端 |
-| `music render score.json --output outputs\new --dry-run --json` | 只解析资源和输出计划；不创建输出 |
+| `music render score.json --output outputs\new --dry-run --json` | 解析资源和输出计划，拒绝已有目录；不创建输出 |
 | `music render score.json --output outputs\new --json` | 离线渲染并检查；原子发布新目录 |
-| `music inspect outputs\new --json` | 检查报告、产物 SHA-256、WAV 解码、LUFS 与真峰值 |
+| `music inspect outputs\new --json` | 返回状态摘要和 report_path；只有报告通过、产物完整、音频复查通过才成功 |
 
 各子命令接受 `--config PATH`。默认 `MUSIC_CONFIG` 环境变量或当前工作目录的 `music.config.json`；配置内相对路径以配置文件所在目录为基准。路径可有空格和中文；调用 shell 时用引号或参数数组。
 
-`--json` 的 stdout 恰好一个 JSON 对象：`version/tool_version/command/ok/data/error`。成功退出 0；`doctor` 健康检查失败退出 1；输入/渲染错误退出 2。失败包含稳定错误码、受影响资源、原因、下一步。命令帮助保留普通文本。`validate` 成功只代表解析/资源校验成功；`doctor` 和 `render` 才实际触发 native 音源。
+`--json` 的 stdout 恰好一个 JSON 对象：`version/tool_version/command/ok/data/error`，当前 `version=2`，schema 为 `src/music/schemas/cli-v2.json`。成功退出 0；`doctor` 健康检查失败退出 1；输入/渲染/inspect 错误退出 2。失败包含稳定错误码、受影响资源、原因、下一步；inspect 的诊断摘要保留在 `data`，未检查的完整性和音频为 null，不能视为通过。命令帮助保留普通文本。`validate` 成功只代表解析/资源校验成功；`doctor` 和 `render` 才实际触发 native 音源。
 
 ## 目录、缓存与隐私边界
 
@@ -50,7 +52,7 @@ python -m venv .venv
 * `.music/logs/`：CLI 错误以及失败渲染目录，保留报告和 native 日志。
 * `outputs/`：用户产物与验收证据；Git 忽略。输出目录默认 `outputs/render`，已存在就失败，不覆盖。
 
-保留中间文件时 `request.json` 记录的是执行当时暂存路径；原子发布后这些请求用于追溯，不能直接重放旧绝对路径。报告中的日志路径已映射到最终目录。
+保留中间文件时 `request.json` 记录的是执行当时暂存路径；原子发布后这些请求用于追溯，不能直接重放旧绝对路径。报告中的日志与 command 请求路径映射到最终证据目录。关闭中间文件后，后端 `command/log=null`、`intermediates_retained=false`，不会给出已删除文件的入口。
 
 ## 真实验收
 
@@ -58,7 +60,7 @@ python -m venv .venv
 .\.venv\Scripts\python.exe scripts\acceptance.py
 ```
 
-脚本在新的中文/空格路径执行实际 CLI；包含双音源渲染、重渲染 SHA-256 对比、改音高确认对应分轨变化、MIDI、缺资源、非法 schema、不支持的 CC、坏 DLL、缺后端、已有输出保护、音高/力度端点和踏板差分。完整证据落到 `outputs/acceptance-*/summary.json`。近干净环境的执行命令见阶段记录。
+脚本在新的中文/空格路径执行实际 CLI；包含双音源渲染、重渲染 SHA-256 对比、改音高确认对应分轨变化、MIDI、缺资源、非法 schema、不支持的 CC、坏 DLL、缺后端、已有输出与 dry-run 保护、零帧拒绝、inspect 对真实失败/缺失/损坏产物的判定、摘要契约、证据路径、音高/力度端点和踏板差分。完整证据落到 `outputs/acceptance-*/summary.json`。近干净环境的执行命令见阶段记录。
 
 ## 技术边界与许可
 

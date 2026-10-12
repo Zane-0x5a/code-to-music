@@ -1,2 +1,2 @@
-"""code-to-music public interface: CLI JSON v1 and score schema v1."""
-__version__ = "0.1.0"
+"""code-to-music public interface: CLI JSON v2 and score/report schema v1."""
+__version__ = "0.2.0"
