@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:code-to-music:report:1",
+  "title": "Render report v1, additive diagnostic fields allowed",
+  "type": "object",
+  "required": ["version", "kind", "status", "tool_version", "timestamp_utc", "score", "config", "runtime", "instruments", "output", "thresholds", "tracks", "artifacts", "warnings", "listening_verified"],
+  "properties": {
+    "version": {"const": 1}, "kind": {"const": "music.render"}, "status": {"enum": ["passed", "failed", "rendering"]},
+    "tool_version": {"type": "string"}, "timestamp_utc": {"type": "string"},
+    "score": {"type": "object", "required": ["path", "sha256", "content"]},
+    "config": {"type": "object", "required": ["path", "sha256"]},
+    "runtime": {"type": "object", "required": ["python", "platform", "dependencies"]},
+    "instruments": {"type": "array", "items": {"type": "object", "required": ["id", "backend", "assets", "source", "version", "license", "verification", "limitations"]}},
+    "output": {"type": "object"}, "thresholds": {"type": "object"},
+    "tracks": {"type": "array", "items": {"type": "object", "required": ["id", "instrument", "muted", "gain_linear", "backend", "qa"], "properties": {"qa": {"$ref": "#/$defs/qa"}}}},
+    "artifacts": {"type": "array", "items": {"type": "object", "required": ["path", "sha256", "bytes"],
+      "properties": {"path": {"type": "string"}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}, "bytes": {"type": "integer", "minimum": 0}}}},
+    "warnings": {"type": "array", "items": {"type": "string"}},
+    "listening_verified": {"type": "boolean"},
+    "audio": {"$ref": "#/$defs/qa"}, "stem_sum": {"type": "object", "required": ["passed", "max_absolute_residual", "tolerance", "relation"]},
+    "error": {"type": "object", "required": ["code", "message"]}
+  },
+  "allOf": [{"if": {"properties": {"status": {"const": "passed"}}}, "then": {"required": ["audio", "stem_sum"]}},
+            {"if": {"properties": {"status": {"const": "failed"}}}, "then": {"required": ["error"]}}],
+  "$defs": {"qa": {
+    "type": "object", "required": ["passed", "issues", "sample_rate", "channels", "frames", "duration_seconds", "sample_peak_dbfs", "rms_dbfs", "integrated_lufs", "true_peak_dbtp", "clipping_samples", "final_50ms_peak_dbfs"],
+    "properties": {
+      "passed": {"type": "boolean"}, "issues": {"type": "array", "items": {"type": "string"}},
+      "sample_rate": {"type": "integer"}, "channels": {"const": 2}, "frames": {"type": "integer"}, "duration_seconds": {"type": "number"},
+      "sample_peak_dbfs": {"type": ["number", "null"]}, "rms_dbfs": {"type": ["number", "null"]},
+      "integrated_lufs": {"type": ["number", "null"]}, "true_peak_dbtp": {"type": ["number", "null"]},
+      "clipping_samples": {"type": "integer"}, "final_50ms_peak_dbfs": {"type": ["number", "null"]}
+    }
+  }}
+}

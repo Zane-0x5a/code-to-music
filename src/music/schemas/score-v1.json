@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:code-to-music:score:1",
+  "title": "Music score v1; beat means quarter-note beat",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["version", "tempo", "time_signature", "length_beats", "tracks"],
+  "properties": {
+    "version": {"const": 1},
+    "title": {"type": "string", "maxLength": 256},
+    "tempo": {"type": "number", "minimum": 20, "maximum": 300},
+    "time_signature": {"type": "array", "prefixItems": [{"type": "integer", "minimum": 1, "maximum": 32}, {"enum": [1, 2, 4, 8, 16]}], "items": false, "minItems": 2},
+    "length_beats": {"type": "number", "exclusiveMinimum": 0, "maximum": 1024},
+    "output": {
+      "type": "object", "additionalProperties": false,
+      "properties": {
+        "sample_rate": {"enum": [44100, 48000]},
+        "tail_seconds": {"type": "number", "minimum": 0, "maximum": 30},
+        "master_gain_db": {"type": "number", "minimum": -60, "maximum": 0},
+        "stems": {"type": "boolean"}, "midi": {"type": "boolean"}, "intermediates": {"type": "boolean"}
+      }
+    },
+    "tracks": {
+      "type": "array", "minItems": 1, "maxItems": 15,
+      "items": {
+        "type": "object", "additionalProperties": false,
+        "required": ["id", "instrument", "events"],
+        "properties": {
+          "id": {"type": "string", "pattern": "^[a-zA-Z][a-zA-Z0-9_-]{0,47}$"},
+          "instrument": {"type": "string", "minLength": 1, "maxLength": 128},
+          "mute": {"type": "boolean"},
+          "gain_db": {"type": "number", "minimum": -60, "maximum": 12},
+          "overlap": {"enum": ["polyphonic", "reject"]},
+          "events": {
+            "type": "array", "maxItems": 10000,
+            "items": {"oneOf": [{"$ref": "#/$defs/note"}, {"$ref": "#/$defs/cc"}]}
+          }
+        }
+      }
+    }
+  },
+  "$defs": {
+    "note": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "beat", "duration", "pitch", "velocity"],
+      "properties": {
+        "type": {"const": "note"}, "beat": {"type": "number", "minimum": 0},
+        "duration": {"type": "number", "minimum": 0.001},
+        "pitch": {"oneOf": [{"type": "integer", "minimum": 0, "maximum": 127}, {"type": "string", "pattern": "^[A-G](#|b)?-?[0-9]$"}]},
+        "velocity": {"type": "integer", "minimum": 1, "maximum": 127}
+      }
+    },
+    "cc": {
+      "type": "object", "additionalProperties": false,
+      "required": ["type", "beat", "controller", "value"],
+      "properties": {
+        "type": {"const": "cc"}, "beat": {"type": "number", "minimum": 0},
+        "controller": {"type": "integer", "minimum": 0, "maximum": 127},
+        "value": {"type": "integer", "minimum": 0, "maximum": 127}
+      }
+    }
+  }
+}

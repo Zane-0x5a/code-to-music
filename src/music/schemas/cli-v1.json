@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:code-to-music:cli:1",
+  "title": "CLI envelope v1",
+  "type": "object", "additionalProperties": false,
+  "required": ["version", "tool_version", "command", "ok", "data", "error"],
+  "properties": {
+    "version": {"const": 1}, "tool_version": {"type": "string"},
+    "command": {"enum": [null, "doctor", "instruments", "validate", "render", "inspect"]},
+    "ok": {"type": "boolean"}, "data": {"type": ["object", "null"]},
+    "error": {"oneOf": [{"type": "null"}, {
+      "type": "object", "additionalProperties": false, "required": ["code", "message", "resource", "fix"],
+      "properties": {
+        "code": {"type": "string", "pattern": "^E_[A-Z_]+$"},
+        "message": {"type": "string"}, "resource": {"type": "string"}, "fix": {"type": "string"}
+      }
+    }]}
+  }
+}

@@ -1,0 +1,40 @@
+{
+  "version": 1,
+  "title": "Glass and wood",
+  "tempo": 110,
+  "time_signature": [4, 4],
+  "length_beats": 16,
+  "output": {"sample_rate": 48000, "tail_seconds": 3, "master_gain_db": -3, "stems": true, "midi": true, "intermediates": true},
+  "tracks": [
+    {
+      "id": "piano", "instrument": "salamander-piano", "gain_db": 6, "overlap": "polyphonic",
+      "events": [
+        {"type": "cc", "beat": 0, "controller": 64, "value": 127},
+        {"type": "note", "beat": 0, "duration": 1.5, "pitch": "C4", "velocity": 82},
+        {"type": "note", "beat": 0, "duration": 3, "pitch": "C3", "velocity": 65},
+        {"type": "note", "beat": 2, "duration": 1.5, "pitch": "E4", "velocity": 92},
+        {"type": "note", "beat": 4, "duration": 1.5, "pitch": "G4", "velocity": 100},
+        {"type": "note", "beat": 4, "duration": 3, "pitch": "A2", "velocity": 64},
+        {"type": "cc", "beat": 7.5, "controller": 64, "value": 0},
+        {"type": "note", "beat": 8, "duration": 1.5, "pitch": "A4", "velocity": 86},
+        {"type": "note", "beat": 8, "duration": 3, "pitch": "F3", "velocity": 75},
+        {"type": "note", "beat": 10, "duration": 1.5, "pitch": "G4", "velocity": 76},
+        {"type": "note", "beat": 12, "duration": 3, "pitch": "E4", "velocity": 63},
+        {"type": "note", "beat": 12, "duration": 3, "pitch": "C3", "velocity": 60}
+      ]
+    },
+    {
+      "id": "synth", "instrument": "surge-init", "gain_db": -6, "overlap": "polyphonic",
+      "events": [
+        {"type": "note", "beat": 1, "duration": 0.5, "pitch": "C5", "velocity": 72},
+        {"type": "note", "beat": 3, "duration": 0.5, "pitch": "E5", "velocity": 80},
+        {"type": "note", "beat": 5, "duration": 0.5, "pitch": "G5", "velocity": 88},
+        {"type": "note", "beat": 7, "duration": 0.5, "pitch": "E5", "velocity": 72},
+        {"type": "note", "beat": 9, "duration": 0.5, "pitch": "A5", "velocity": 80},
+        {"type": "note", "beat": 11, "duration": 0.5, "pitch": "G5", "velocity": 76},
+        {"type": "note", "beat": 13, "duration": 0.5, "pitch": "E5", "velocity": 68},
+        {"type": "note", "beat": 15, "duration": 0.5, "pitch": "C5", "velocity": 62}
+      ]
+    }
+  ]
+}

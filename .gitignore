@@ -1,0 +1,11 @@
+.venv/
+resources/
+work/
+.music/
+outputs/
+__pycache__/
+*.egg-info/
+music.config.json
+.acceptance-venv/
+build/
+dist/
