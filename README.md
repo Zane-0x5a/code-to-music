@@ -1,5 +1,7 @@
 # code-to-music
 
+**简体中文** | [English](README.en.md)
+
 Agent 修改 JSON 乐谱，运行 `music validate` 和 `music render`，得到经过技术检查的 PCM24 立体声 WAV、分轨、MIDI 和机器可读报告。当前提供 **12 个固定音源**：Salamander 钢琴、两套 AVL 采样鼓组、VSCO 长笛/小号/小提琴组、Surge init 及电钢琴/贝斯/拨弦/Lead/FM Pad；不需要 DAW、GUI 或音频设备。
 
 先听 [四段示例](docs/DEMOS.md)，再复制对应 JSON 修改音符或编曲。安装后使用 [Agent 快速开始](docs/AGENT_QUICKSTART.md)；本次版本说明见 [0.5.0 发布说明](docs/RELEASE_NOTES_0.5.0.md)。
