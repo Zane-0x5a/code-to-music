@@ -1,0 +1,153 @@
+{
+  "version": 1,
+  "title": "Woodwinds, brass and strings",
+  "tempo": 110,
+  "time_signature": [
+    4,
+    4
+  ],
+  "length_beats": 8,
+  "output": {
+    "sample_rate": 48000,
+    "tail_seconds": 4,
+    "master_gain_db": -8,
+    "stems": true,
+    "midi": true,
+    "intermediates": false
+  },
+  "tracks": [
+    {
+      "id": "flute",
+      "instrument": "vsco-flute-sustain",
+      "gain_db": -8,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 72,
+          "duration": 0.8,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 1,
+          "pitch": 74,
+          "duration": 0.8,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 2,
+          "pitch": 76,
+          "duration": 0.8,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 3,
+          "pitch": 79,
+          "duration": 0.8,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 77,
+          "duration": 0.8,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 5,
+          "pitch": 76,
+          "duration": 0.8,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 6,
+          "pitch": 74,
+          "duration": 0.8,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 7,
+          "pitch": 72,
+          "duration": 0.8,
+          "velocity": 90
+        }
+      ]
+    },
+    {
+      "id": "trumpet",
+      "instrument": "vsco-trumpet-sustain",
+      "gain_db": -12,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 60,
+          "duration": 2.8,
+          "velocity": 85
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 67,
+          "duration": 2.8,
+          "velocity": 85
+        }
+      ]
+    },
+    {
+      "id": "violins",
+      "instrument": "vsco-violin-ensemble",
+      "gain_db": -10,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 60,
+          "duration": 3.6,
+          "velocity": 80
+        },
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 64,
+          "duration": 3.6,
+          "velocity": 80
+        },
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 67,
+          "duration": 3.6,
+          "velocity": 80
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 57,
+          "duration": 3.6,
+          "velocity": 80
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 60,
+          "duration": 3.6,
+          "velocity": 80
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 65,
+          "duration": 3.6,
+          "velocity": 80
+        }
+      ]
+    }
+  ]
+}

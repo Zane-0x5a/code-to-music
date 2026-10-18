@@ -10,6 +10,7 @@ from .errors import MusicError
 THRESHOLDS = {"max_sample_peak_dbfs": -1, "max_true_peak_dbtp": -1,
               "min_rms_dbfs": -65, "max_rms_dbfs": -6,
               "min_integrated_lufs": -45, "max_integrated_lufs": -6}
+STEM_THRESHOLDS = {"max_sample_peak_dbfs": -1, "max_true_peak_dbtp": -1}
 
 
 def db(value: float) -> float | None:
@@ -39,18 +40,29 @@ def read_wav(path: Path) -> tuple[np.ndarray, int]:
     return (integers.astype(np.float64) / 8388608).reshape(-1, 2).T, sample_rate
 
 
-def measure(path: Path, expected_frames: int, sample_rate: int, audible: bool = True) -> dict:
+def measure(path: Path, expected_frames: int, sample_rate: int, audible: bool = True,
+            role: str = "master") -> dict:
+    if role not in {"master", "stem"}:
+        raise ValueError(f"Unknown audio QA role: {role}")
     audio, actual_rate = read_wav(path)
     peak = float(np.max(np.abs(audio)))
     rms = float(np.sqrt(np.mean(audio * audio)))
-    issues = []
+    issues, diagnostics = [], []
+    def issue(message: str, metric: str, actual, comparison: str, threshold):
+        issues.append(message)
+        diagnostics.append(dict(metric=metric, actual=actual, comparison=comparison, threshold=threshold))
     if actual_rate != sample_rate or audio.shape != (2, expected_frames):
-        issues.append("sample_rate/channels/frame_count mismatch")
+        issue("sample_rate/channels/frame_count mismatch", "audio_format",
+              dict(sample_rate=actual_rate, channels=2, frames=audio.shape[1]), "equals",
+              dict(sample_rate=sample_rate, channels=2, frames=expected_frames))
     peak_db, rms_db = db(peak), db(rms)
-    if audible and (rms_db is None or not THRESHOLDS["min_rms_dbfs"] <= rms_db <= THRESHOLDS["max_rms_dbfs"]):
-        issues.append("silence or RMS outside thresholds")
+    if audible and role == "stem" and peak_db is None:
+        issue("active stem is silent", "sample_peak_dbfs", peak_db, "non_silent", 0)
+    if audible and role == "master" and (rms_db is None or not THRESHOLDS["min_rms_dbfs"] <= rms_db <= THRESHOLDS["max_rms_dbfs"]):
+        issue("silence or RMS outside thresholds", "rms_dbfs", rms_db, "between",
+              [THRESHOLDS["min_rms_dbfs"], THRESHOLDS["max_rms_dbfs"]])
     if peak_db is not None and peak_db > THRESHOLDS["max_sample_peak_dbfs"]:
-        issues.append("sample peak exceeds -1 dBFS")
+        issue("sample peak exceeds -1 dBFS", "sample_peak_dbfs", peak_db, "at_most", THRESHOLDS["max_sample_peak_dbfs"])
     ffmpeg = shutil.which("ffmpeg")
     if not ffmpeg:
         raise MusicError("E_BACKEND_UNAVAILABLE", "FFmpeg is needed for LUFS/true-peak checks.", "ffmpeg",
@@ -67,12 +79,14 @@ def measure(path: Path, expected_frames: int, sample_rate: int, audible: bool = 
     except (ValueError, KeyError) as exc:
         raise MusicError("E_AUDIO_QA", f"FFmpeg loudness analysis failed (exit {process.returncode}).", str(path), "Check ffmpeg installation and WAV decoding.") from exc
     if process.returncode:
-        issues.append("FFmpeg decoder failure")
-    if audible and (lufs is None or not THRESHOLDS["min_integrated_lufs"] <= lufs <= THRESHOLDS["max_integrated_lufs"]):
-        issues.append("integrated LUFS outside thresholds")
+        issue("FFmpeg decoder failure", "ffmpeg_exit_code", process.returncode, "equals", 0)
+    if audible and role == "master" and (lufs is None or not THRESHOLDS["min_integrated_lufs"] <= lufs <= THRESHOLDS["max_integrated_lufs"]):
+        issue("integrated LUFS outside thresholds", "integrated_lufs", lufs, "between",
+              [THRESHOLDS["min_integrated_lufs"], THRESHOLDS["max_integrated_lufs"]])
     if true_peak is not None and true_peak > THRESHOLDS["max_true_peak_dbtp"]:
-        issues.append("true peak exceeds -1 dBTP")
-    return dict(passed=not issues, issues=issues, sample_rate=actual_rate, channels=2, frames=audio.shape[1],
+        issue("true peak exceeds -1 dBTP", "true_peak_dbtp", true_peak, "at_most", THRESHOLDS["max_true_peak_dbtp"])
+    return dict(passed=not issues, issues=issues, diagnostics=diagnostics, qa_role=role,
+                sample_rate=actual_rate, channels=2, frames=audio.shape[1],
                 duration_seconds=audio.shape[1]/actual_rate, sample_peak_dbfs=peak_db, rms_dbfs=rms_db,
                 integrated_lufs=lufs, true_peak_dbtp=true_peak,
                 clipping_samples=int(np.sum(np.abs(audio) >= 1)),

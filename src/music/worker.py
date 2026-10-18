@@ -4,7 +4,6 @@ Native plugin crashes/timeouts never terminate the CLI process.
 """
 from pathlib import Path
 import sys
-import time
 import numpy as np
 from .errors import read_json, write_json
 
@@ -21,30 +20,32 @@ def run(request: dict) -> dict:
             backend_version = player.version
         finally:
             player.close()
-    else:
+    elif instrument["backend"] == "sfz":
+        from .backends.sfizioso import load_sfz_plugin
+        from .backends.vst3 import render_frames
+        player = load_sfz_plugin(instrument["assets"]["plugin"]["path"],
+                                 instrument["assets"]["sfz"]["path"])
+        midi = [(event["data"], event["frame"] / sample_rate) for event in request["events"]]
+        audio = render_frames(player, midi, frames, sample_rate)
+        backend_version = str(player.version)
+    elif instrument["backend"] == "vst3":
         from pedalboard import AudioProcessorParameter
-        from .backends.surge import load_init_plugin
+        from .backends.vst3 import render_frames
+        from .backends.surge import load_init_plugin, verify_restored_patch
         player = load_init_plugin(instrument["assets"]["plugin"]["path"])
         if not player.is_instrument:
             raise RuntimeError("VST3 is an effect, not a MIDI instrument")
         profile = read_json(Path(instrument["assets"]["profile"]["path"]))
+        # Prepare sample-rate-dependent state without sounding a readiness note.
+        player([], duration=.1, sample_rate=sample_rate, num_channels=2, buffer_size=512, reset=True)
         # Bypass the mixin's parameter-name lookup for this native descriptor;
         # ordinary assignment would enumerate every unrelated plugin control.
         object.__setattr__(player, "raw_state", bytes.fromhex(profile["raw_state_hex"]))
-        # Surge restores patches asynchronously. A tight offline render can finish
-        # before the patch loader has run. Prime with a discarded note and wait
-        # for real audio, bounded independently of the outer worker timeout.
-        deadline = time.monotonic() + 15
-        attempts = 0
-        while True:
-            attempts += 1
-            probe = player([([0x90,60,96],0), ([0x80,60,0],.03)], duration=.1,
-                           sample_rate=sample_rate, num_channels=2, buffer_size=512, reset=True)
-            if float(np.max(np.abs(probe))) > 1e-6:
-                break
-            if time.monotonic() >= deadline:
-                raise RuntimeError("Surge preset initialization stayed silent after 15 seconds")
-            time.sleep(.02)
+        # processEnqueuedPatchIfNeeded runs at the next audio block. Check the
+        # resulting patch identity and voice, rather than waiting for sound.
+        player([], duration=.1, sample_rate=sample_rate, num_channels=2, buffer_size=512, reset=False)
+        verify_restored_patch(player, profile)
+        attempts = 1
         # Construct only the admitted public parameter wrappers. Enumerating
         # every parameter probes thousands of text values per control and can
         # take over 90s; no other controls are needed for this pinned profile.
@@ -56,9 +57,8 @@ def run(request: dict) -> dict:
             # Only normalized raw values are used; label/range inference is
             # unnecessary, so inspect endpoints instead of 1000 text values.
             AudioProcessorParameter(player, parameter_names[key], search_steps=1).raw_value = raw
-        # Host reset alone does not remove the first-render residue of the
-        # readiness note. Advance the admitted init patch until its decay and
-        # parameter smoothing have settled, without including this in output.
+        # Settle smoothing and verify empty input is silent. No initialization
+        # note is injected, so long-release pads begin without a residual voice.
         settled_seconds = 0.0
         while settled_seconds < 10:
             decay = player([], duration=.5, sample_rate=sample_rate,
@@ -68,17 +68,19 @@ def run(request: dict) -> dict:
             if settled_seconds >= 2 and settled_peak <= 1e-12:
                 break
         else:
-            raise RuntimeError("Surge readiness note did not settle below 1e-12 within 10 audio seconds")
+            raise RuntimeError("Surge empty-input initialization did not settle below 1e-12 within 10 audio seconds")
         midi = [(e["data"], e["frame"] / sample_rate) for e in request["events"]]
-        audio = player(midi, duration=frames/sample_rate, sample_rate=sample_rate,
-                       num_channels=2, buffer_size=512, reset=True)
+        audio = render_frames(player, midi, frames, sample_rate)
         backend_version = str(player.version)
+    else:
+        raise RuntimeError(f"Unsupported backend: {instrument['backend']}")
     if audio.shape != (2, frames) or not np.all(np.isfinite(audio)):
         raise RuntimeError(f"Invalid native audio shape/values: {audio.shape}; expected (2, {frames})")
     np.save(request["audio_path"], audio, allow_pickle=False)
     return dict(ok=True, backend_version=backend_version, frames=frames,
                 initialization_attempts=attempts if instrument["backend"] == "vst3" else 1,
                 initialization_settle_seconds=settled_seconds if instrument["backend"] == "vst3" else 0,
+                full_render_attempts=1,
                 peak=float(np.max(np.abs(audio))))
 
 

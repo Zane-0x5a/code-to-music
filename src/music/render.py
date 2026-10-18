@@ -9,7 +9,7 @@ import tempfile
 import uuid
 import numpy as np
 from . import __version__
-from .audio import THRESHOLDS, write_wav, read_wav, measure
+from .audio import THRESHOLDS, STEM_THRESHOLDS, write_wav, read_wav, measure
 from .backend import run_backend
 from .errors import MusicError, write_json, fingerprint
 from .midi import write_midi
@@ -40,6 +40,21 @@ def relocate_evidence(report: dict, stage: Path, destination: Path) -> None:
         backend["log"] = str(destination / log_relative) if (stage / log_relative).is_file() else None
 
 
+def qa_failures(report: dict) -> list[dict]:
+    failures = []
+    for track in report["tracks"]:
+        failures.extend(dict(scope="stem", track_id=track["id"], **item)
+                        for item in track["qa"].get("diagnostics", []))
+    if "audio" in report:
+        failures.extend(dict(scope="master", track_id=None, **item)
+                        for item in report["audio"].get("diagnostics", []))
+    if "stem_sum" in report and not report["stem_sum"]["passed"]:
+        failures.append(dict(scope="mix", track_id=None, metric="stem_sum_residual",
+                             actual=report["stem_sum"]["max_absolute_residual"], comparison="at_most",
+                             threshold=report["stem_sum"]["tolerance"]))
+    return failures
+
+
 def render(score: Score, score_path: Path, config_path: Path, instruments: dict, destination: Path) -> dict:
     destination = destination.absolute()
     check_destination(destination)
@@ -55,7 +70,8 @@ def render(score: Score, score_path: Path, config_path: Path, instruments: dict,
                   runtime=dict(python=platform.python_version(), platform=platform.platform(),
                                dependencies={name: version(name) for name in ("numpy", "mido", "jsonschema", "pedalboard")}),
                   instruments=list(instruments.values()), output=dict(directory=str(destination), **score.output),
-                  thresholds=THRESHOLDS, tracks=[], artifacts=[], warnings=[], listening_verified=False)
+                  thresholds=THRESHOLDS, stem_thresholds=STEM_THRESHOLDS,
+                  tracks=[], artifacts=[], warnings=[], listening_verified=False)
     try:
         ffmpeg = shutil.which("ffmpeg")
         if not ffmpeg:
@@ -79,11 +95,11 @@ def render(score: Score, score_path: Path, config_path: Path, instruments: dict,
             wav_path = stage / "stems" / f"{tid}.wav"
             wav_path.parent.mkdir(exist_ok=True)
             write_wav(wav_path, contribution, score.sample_rate)
-            qa = measure(wav_path, score.frames, score.sample_rate, audible=audible)
+            qa = measure(wav_path, score.frames, score.sample_rate, audible=audible, role="stem")
             stems.append(wav_path)
             report["tracks"].append(dict(id=tid, instrument=instrument["id"], muted=not active, gain_linear=gain, backend=backend, qa=qa))
             if score.output["midi"]:
-                write_midi(wav_path.with_suffix(".mid"), score, [track])
+                write_midi(wav_path.with_suffix(".mid"), score, [track], instruments)
         master_path = stage / "master.wav"
         write_wav(master_path, mix, score.sample_rate)
         # Only individual stems may be intentionally silent; the whole work must pass non-silence QA.
@@ -97,10 +113,16 @@ def render(score: Score, score_path: Path, config_path: Path, instruments: dict,
         report["stem_sum"] = dict(max_absolute_residual=residual, tolerance=tolerance, passed=residual <= tolerance,
                                   relation="Post-track-gain and post-master-gain stems sum to master; PCM24 rounding only.")
         if score.output["midi"]:
-            write_midi(stage / "score.mid", score, score.data["tracks"])
+            write_midi(stage / "score.mid", score, score.data["tracks"], instruments)
         if not report["audio"]["passed"] or not report["stem_sum"]["passed"] or any(not t["qa"]["passed"] for t in report["tracks"]):
-            raise MusicError("E_AUDIO_QA", "Audio checks failed; see per-track and master metrics in report.", str(destination),
-                             "Adjust gains for peak/loudness failures; check note timing/resources for silence.")
+            failures = qa_failures(report)
+            report["qa_failures"] = failures
+            first = failures[0]
+            location = first["track_id"] or first["scope"]
+            raise MusicError("E_AUDIO_QA", f"Audio checks failed: {location} {first['metric']}={first['actual']} "
+                             f"(required {first['comparison']} {first['threshold']}); {len(failures)} failure(s).",
+                             location, "Correct the named metric and render to a fresh output directory.",
+                             data=dict(status="failed", qa_failures=failures))
         if report["audio"]["final_50ms_peak_dbfs"] is not None and report["audio"]["final_50ms_peak_dbfs"] > -60:
             report["warnings"].append("Tail still audible at end; increase output.tail_seconds to preserve full decay.")
         if not score.output["stems"]:
@@ -129,5 +151,7 @@ def render(score: Score, score_path: Path, config_path: Path, instruments: dict,
         write_json(stage / "report.json", report)
         shutil.move(str(stage), failed)
         if isinstance(exc, MusicError):
+            if exc.data is not None:
+                exc.data["report_path"] = str(failed / "report.json")
             exc.fix += f" Failure evidence: {failed / 'report.json'}"
         raise

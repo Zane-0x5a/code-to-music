@@ -22,7 +22,7 @@ class Parser(argparse.ArgumentParser):
 
 
 def parser() -> Parser:
-    root = Parser(prog="music", description="Headless score -> sampled piano + VST3 -> checked WAV/stems/MIDI/report. JSON contract v3.")
+    root = Parser(prog="music", description="Headless JSON score -> sampled and electronic instruments -> checked WAV/stems/MIDI/report. JSON contract v3.")
     root.add_argument("--version", action="version", version=__version__)
     commands = root.add_subparsers(dest="command", required=True)
     for command, description in [("doctor", "Verify assets, load each instrument and render a short offline probe."),
@@ -49,22 +49,27 @@ def execute(args) -> dict:
     instruments = catalog(args.config.resolve())
     if args.command == "instruments":
         result = []
+        fingerprints = {}
         for instrument in instruments.values():
             try:
-                check_assets(instrument)
+                check_assets(instrument, fingerprints=fingerprints)
                 result.append({**instrument, "availability": "present_hash_verified"})
             except MusicError as exc:
                 result.append({**instrument, "availability": "unavailable", "error": exc.as_dict()})
         return {"instruments": result}
     if args.command == "doctor":
         checks = []
+        fingerprints = {}
         log_root = args.config.resolve().parent / ".music" / "doctor"
         log_root.mkdir(parents=True, exist_ok=True)
         for instrument in instruments.values():
             try:
-                check_assets(instrument)
+                check_assets(instrument, fingerprints=fingerprints)
                 directory = Path(tempfile.mkdtemp(prefix=instrument["id"] + "-", dir=log_root))
-                events = [dict(frame=0, data=[0x90,60,96]), dict(frame=24000, data=[0x80,60,0]), dict(frame=24000, data=[0xB0,64,0])]
+                note = instrument.get("probe_note", 60)
+                events = [dict(frame=0, data=[0x90,note,96]), dict(frame=24000, data=[0x80,note,0])]
+                if 64 in instrument["capabilities"]["controllers"]:
+                    events.append(dict(frame=24000, data=[0xB0,64,0]))
                 audio, details = run_backend(instrument, events, 48000, 48000, directory, timeout=90)
                 if float(abs(audio).max()) <= 0.00001:
                     raise MusicError("E_AUDIO_QA", "Offline doctor probe is silent.", instrument["id"], "Restore the instrument/profile and inspect the native log.")

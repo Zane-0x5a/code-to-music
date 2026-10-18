@@ -1,0 +1,240 @@
+{
+  "version": 1,
+  "checked_on": "2026-10-18",
+  "encoding": "MP3 192 kbps; trailing quiet trimmed, final 50 ms fade; no normalization",
+  "note": "Four new original compositions. Technical checks do not constitute listening approval.",
+  "demos": [
+    {
+      "id": "window-light",
+      "title": "Window Light / 窗边微光",
+      "score": "examples/showcase/window-light.json",
+      "preview": "docs/audio/window-light.mp3",
+      "tool_version": "0.5.0",
+      "score_duration_seconds": 41.73913043478261,
+      "source_duration_seconds": 44.239125,
+      "duration_seconds": 42.3,
+      "source_report_status": "passed",
+      "source_inspect_passed": true,
+      "listening_verified": false,
+      "score_sha256": "c2e06b606f1c5846895c3ab9dc68f7ca10e4b053181598811722700a5c1a2c26",
+      "source_wav_sha256": "1a9245a06e49edc258f233ca93eef422c926d0de98a2fce9f34695b35b0469bd",
+      "preview_sha256": "d71aca1fb4c357ef53cfebb99df970f822c3f116c7abc02235264b049f010dee",
+      "preview_bytes": 1016685,
+      "source_audio_metrics": {
+        "integrated_lufs": -21.0,
+        "true_peak_dbtp": -6.15,
+        "clipping_samples": 0
+      },
+      "preview_edit": {
+        "trim_end_seconds": 42.300000000000004,
+        "fade_out_seconds": 0.05,
+        "trailing_quiet_seconds": 0.5,
+        "active_body_window_ratio": 1.0,
+        "window_seconds": 0.1,
+        "reference_rms_dbfs": -60
+      },
+      "instruments": [
+        {
+          "id": "salamander-piano",
+          "version": "V3+20200602",
+          "assets": {
+            "library": "d2819955444d4b44217be9c431f2b7e38fd4062ef71341de8725eed4e31c4957",
+            "runtime": "b65e3a353906881e8b777cd220791f1d251c608819ecac29aafa8c6f2aed7956",
+            "soundfont": "712d0e681efbe5203a8014e9b3e84168f1908c82f2f6fb13bd2c77d6d72c70b7"
+          }
+        }
+      ]
+    },
+    {
+      "id": "pocket-workshop",
+      "title": "Pocket Workshop / 律动工坊",
+      "score": "examples/showcase/pocket-workshop.json",
+      "preview": "docs/audio/pocket-workshop.mp3",
+      "tool_version": "0.5.0",
+      "score_duration_seconds": 35.55555555555556,
+      "source_duration_seconds": 41.5555625,
+      "duration_seconds": 40.1,
+      "source_report_status": "passed",
+      "source_inspect_passed": true,
+      "listening_verified": false,
+      "score_sha256": "b2bf15ed275d38bd6c5d6840e417e2a52c9ca645b60ede0e71e06dc154ace321",
+      "source_wav_sha256": "7c4d7b3aabcc91c849f45f057cc8bdf88f8ec15bf894149a9c136a689762551c",
+      "preview_sha256": "193d0d279cdff76be5cb2ea76651190d35ea9400bc25f0cf751dfea1ea4486a9",
+      "preview_bytes": 963693,
+      "source_audio_metrics": {
+        "integrated_lufs": -20.81,
+        "true_peak_dbtp": -2.51,
+        "clipping_samples": 0
+      },
+      "preview_edit": {
+        "trim_end_seconds": 40.1,
+        "fade_out_seconds": 0.05,
+        "trailing_quiet_seconds": 0.5,
+        "active_body_window_ratio": 1.0,
+        "window_seconds": 0.1,
+        "reference_rms_dbfs": -60
+      },
+      "instruments": [
+        {
+          "id": "avl-red-zeppelin",
+          "version": "AVL Drumkits 1.1 / LV2 SF2 (2023-09-05)",
+          "assets": {
+            "library": "d2819955444d4b44217be9c431f2b7e38fd4062ef71341de8725eed4e31c4957",
+            "runtime": "b65e3a353906881e8b777cd220791f1d251c608819ecac29aafa8c6f2aed7956",
+            "soundfont": "289fc3e30a4859eb74ae14eb08ddef453e8bf8eab3e501772dcf96fd8328a71a"
+          }
+        }
+      ]
+    },
+    {
+      "id": "morning-path",
+      "title": "Morning Path / 林间晨行",
+      "score": "examples/showcase/morning-path.json",
+      "preview": "docs/audio/morning-path.mp3",
+      "tool_version": "0.5.0",
+      "score_duration_seconds": 32.72727272727273,
+      "source_duration_seconds": 34.92727083333333,
+      "duration_seconds": 33.4,
+      "source_report_status": "passed",
+      "source_inspect_passed": true,
+      "listening_verified": false,
+      "score_sha256": "dd8026e4ac085ba04df9e679b1e6cc8c7d888dfb27b3f4297bd283025d399ba9",
+      "source_wav_sha256": "2651486f2a65da052b76b44d76ae1f7ca977862ed0c51e6bf068a6e34df7be14",
+      "preview_sha256": "937a8aaf66c5150fe4e0c2b2c5c555f384564f8af8d1d69079c03374a8fcdba9",
+      "preview_bytes": 802989,
+      "source_audio_metrics": {
+        "integrated_lufs": -20.5,
+        "true_peak_dbtp": -7.99,
+        "clipping_samples": 0
+      },
+      "preview_edit": {
+        "trim_end_seconds": 33.4,
+        "fade_out_seconds": 0.05,
+        "trailing_quiet_seconds": 0.5,
+        "active_body_window_ratio": 1.0,
+        "window_seconds": 0.1,
+        "reference_rms_dbfs": -60
+      },
+      "instruments": [
+        {
+          "id": "vsco-flute-sustain",
+          "version": "VSCO 2 CE 1.1.0 / sfizioso Player 0.12.3",
+          "assets": {
+            "plugin": "ae19a6dce08b63ebad69035815e991f0ef6d10e91c84ac8bd574f4bbe76943bd",
+            "sfz": "0c3e15abe738778c38f93aa69e1d994e3b6e32b68ab7977b9138c4e079f99661",
+            "samples": "b0c51640c0f10feae7daa3d7104c3285b7db3f18da6a6109a14f795e5c99b262"
+          }
+        },
+        {
+          "id": "vsco-trumpet-sustain",
+          "version": "VSCO 2 CE 1.1.0 / sfizioso Player 0.12.3",
+          "assets": {
+            "plugin": "ae19a6dce08b63ebad69035815e991f0ef6d10e91c84ac8bd574f4bbe76943bd",
+            "sfz": "8dc5eca44087b0f0af782b3a54ee10a263520d7756f6ed497aa1e3111eea66a6",
+            "samples": "ccb335e20b9ef8bce37072dad04bf8a94bf5b2ed250baf336723a85988434426"
+          }
+        },
+        {
+          "id": "vsco-violin-ensemble",
+          "version": "VSCO 2 CE 1.1.0 / sfizioso Player 0.12.3",
+          "assets": {
+            "plugin": "ae19a6dce08b63ebad69035815e991f0ef6d10e91c84ac8bd574f4bbe76943bd",
+            "sfz": "4591e212cccf1cbcff0c78cf8429a8221bb0820b70cb7c8dd6685f470ace4eaa",
+            "samples": "967fae73c08b3b902f8d6dde31cd2d56d409f0f01c1821e3391064163c4b2ebf"
+          }
+        }
+      ]
+    },
+    {
+      "id": "after-hours",
+      "title": "After Hours / 夜航",
+      "score": "examples/showcase/after-hours.json",
+      "preview": "docs/audio/after-hours.mp3",
+      "tool_version": "0.5.0",
+      "score_duration_seconds": 34.285714285714285,
+      "source_duration_seconds": 37.28570833333333,
+      "duration_seconds": 35.3,
+      "source_report_status": "passed",
+      "source_inspect_passed": true,
+      "listening_verified": false,
+      "score_sha256": "a9daa17b627d0ad99695d00b454ff8e448e4e8db1d957c9e9883cf4f85efc003",
+      "source_wav_sha256": "fe48378ad980dab2e071adb2a4db815c81a24344a0a5aa8548e8d5c508a4ae66",
+      "preview_sha256": "7ea06d47b1d493f97fafc58ac9ae67ed8d211e0cd25d781ea1cc032a7e3437d2",
+      "preview_bytes": 848493,
+      "source_audio_metrics": {
+        "integrated_lufs": -18.98,
+        "true_peak_dbtp": -2.34,
+        "clipping_samples": 0
+      },
+      "preview_edit": {
+        "trim_end_seconds": 35.300000000000004,
+        "fade_out_seconds": 0.05,
+        "trailing_quiet_seconds": 0.5,
+        "active_body_window_ratio": 1.0,
+        "window_seconds": 0.1,
+        "reference_rms_dbfs": -60
+      },
+      "instruments": [
+        {
+          "id": "surge-dx-ep",
+          "version": "Surge XT 1.3.4 factory / profile v1",
+          "assets": {
+            "plugin": "49794ad99d899a869b97416024283d74baf2c517bac15db0fde511bc99624e20",
+            "data": "98d32acafeffd5a3ab9bab633c2522485028911ac4cbb09ff8612b197360da12",
+            "profile": "506bc63b0b221f1138fa52486edb49fe066d6b05bd9113763c68a4eb2c167b45",
+            "factory": "58dce856cd45ed4fc58db9208932180c3bfcb5fe52b74f8b493a943bc778a54d"
+          }
+        },
+        {
+          "id": "surge-e-bass",
+          "version": "Surge XT 1.3.4 factory / profile v1",
+          "assets": {
+            "plugin": "49794ad99d899a869b97416024283d74baf2c517bac15db0fde511bc99624e20",
+            "data": "98d32acafeffd5a3ab9bab633c2522485028911ac4cbb09ff8612b197360da12",
+            "profile": "e449549c65fc9608f3e864b293b9ee04acc0660221b4120407ba88a60d01a882",
+            "factory": "31967eb728c5e2072090afdea2046647730def28fc4b599776b54494917ddf19"
+          }
+        },
+        {
+          "id": "surge-nice-pluck",
+          "version": "Surge XT 1.3.4 factory / profile v1",
+          "assets": {
+            "plugin": "49794ad99d899a869b97416024283d74baf2c517bac15db0fde511bc99624e20",
+            "data": "98d32acafeffd5a3ab9bab633c2522485028911ac4cbb09ff8612b197360da12",
+            "profile": "70dafce4b1375cd9d89c4953457aa9dead80a5b48b74c2a75ac087fc0496fb37",
+            "factory": "7d62087fe02ef48f024eebadcdd71708d3ebf6cae8e3ada6ab58c7e5a5324c97"
+          }
+        },
+        {
+          "id": "surge-classic-lead",
+          "version": "Surge XT 1.3.4 factory / profile v1",
+          "assets": {
+            "plugin": "49794ad99d899a869b97416024283d74baf2c517bac15db0fde511bc99624e20",
+            "data": "98d32acafeffd5a3ab9bab633c2522485028911ac4cbb09ff8612b197360da12",
+            "profile": "fd94596136ee93747d6340345ff856b039c78b41f3213474d942dc3b9840cabd",
+            "factory": "01e5d0f3e6ea542b50b0d98aeb0ac4e229b7296535e993dc456230b36e1ac204"
+          }
+        },
+        {
+          "id": "surge-fm-pad",
+          "version": "Surge XT 1.3.4 factory / profile v1",
+          "assets": {
+            "plugin": "49794ad99d899a869b97416024283d74baf2c517bac15db0fde511bc99624e20",
+            "data": "98d32acafeffd5a3ab9bab633c2522485028911ac4cbb09ff8612b197360da12",
+            "profile": "68d4466fe5ab92a510f46cbe23ebc7c9431e4d646509e07a613e00985478bf56",
+            "factory": "07a1481b01a9c9ad6337cefcd647f69ec6ba049c2420ed0ae2ce8d9f927c4c31"
+          }
+        },
+        {
+          "id": "avl-black-pearl",
+          "version": "AVL Drumkits 1.1 / LV2 SF2 (2023-09-05)",
+          "assets": {
+            "library": "d2819955444d4b44217be9c431f2b7e38fd4062ef71341de8725eed4e31c4957",
+            "runtime": "b65e3a353906881e8b777cd220791f1d251c608819ecac29aafa8c6f2aed7956",
+            "soundfont": "e0542ec19f2816ef4e0d00aeb087e7aa311e888d6f4805f971688bb267c6d405"
+          }
+        }
+      ]
+    }
+  ]
+}

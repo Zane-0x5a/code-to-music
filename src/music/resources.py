@@ -8,7 +8,7 @@ CONFIG_SCHEMA = {
         "additionalProperties": {"type": "object", "additionalProperties": False,
             "required": ["backend", "name", "version", "license", "source", "assets", "capabilities", "verification", "limitations"],
             "properties": {
-                "backend": {"enum": ["fluidsynth", "vst3"]},
+                "backend": {"enum": ["fluidsynth", "vst3", "sfz"]},
                 **{key: {"type": "string"} for key in ("name", "version", "license", "source", "verification")},
                 "limitations": {"type": "array", "items": {"type": "string"}},
                 "capabilities": {"type": "object", "additionalProperties": False, "required": ["pitch_range", "controllers"],
@@ -18,7 +18,9 @@ CONFIG_SCHEMA = {
                     "type": "object", "additionalProperties": False, "required": ["path", "sha256"],
                     "properties": {"path": {"type": "string", "minLength": 1}, "sha256": {"type": "string", "pattern": "^[0-9a-f]{64}$"}}}},
                 "bank": {"type": "integer", "minimum": 0, "maximum": 16383},
-                "program": {"type": "integer", "minimum": 0, "maximum": 127}
+                "program": {"type": "integer", "minimum": 0, "maximum": 127},
+                "probe_note": {"type": "integer", "minimum": 0, "maximum": 127},
+                "percussion": {"type": "boolean"}
             }}}}
 }
 
@@ -34,7 +36,9 @@ def catalog(config: Path) -> dict:
     resolved = {}
     for key, value in data["instruments"].items():
         instrument = {**value, "id": key, "assets": {}}
-        required = {"library", "soundfont"} if value["backend"] == "fluidsynth" else {"plugin", "data", "profile"}
+        required = ({"library", "soundfont"} if value["backend"] == "fluidsynth" else
+                    {"plugin", "data", "profile"} if value["backend"] == "vst3" else
+                    {"plugin", "sfz", "samples"})
         if not required <= value["assets"].keys():
             raise MusicError("E_CONFIG", f"Required assets: {sorted(required)}", key, "Regenerate the resource configuration.")
         if value["capabilities"]["pitch_range"][0] > value["capabilities"]["pitch_range"][1]:
@@ -45,7 +49,10 @@ def catalog(config: Path) -> dict:
     return resolved
 
 
-def check_assets(instrument: dict, verify_hash: bool = True) -> None:
+def check_assets(instrument: dict, verify_hash: bool = True, fingerprints: dict | None = None) -> None:
+    # Share work only within this command. A later command always reads assets
+    # again, so a changed file never inherits a stale persistent hash cache.
+    fingerprints = {} if fingerprints is None else fingerprints
     for name, asset in instrument["assets"].items():
         path = Path(asset["path"])
         if not path.exists():
@@ -53,7 +60,9 @@ def check_assets(instrument: dict, verify_hash: bool = True) -> None:
             raise MusicError("E_BACKEND_UNAVAILABLE" if backend else "E_RESOURCE_MISSING",
                              f"{instrument['id']}: missing {name}.", str(path),
                              "Run python scripts/install_resources.py, or fix the asset path in music.config.json.")
-        if verify_hash and fingerprint(path) != asset["sha256"]:
+        if verify_hash and str(path) not in fingerprints:
+            fingerprints[str(path)] = fingerprint(path)
+        if verify_hash and fingerprints[str(path)] != asset["sha256"]:
             raise MusicError("E_RESOURCE_CHANGED", f"{instrument['id']}: {name} SHA-256 differs from pinned configuration.", str(path),
                              "Restore the pinned asset. For an intentional upgrade, regenerate config and rerun acceptance.")
 
@@ -74,6 +83,7 @@ def resolve_score(score, instruments: dict) -> list[dict]:
                 raise MusicError("E_UNSUPPORTED", f"Controller {event['controller']} is not verified for this instrument.", track["id"],
                                  f"Use supported controllers {instrument['capabilities']['controllers']}.")
         selected[key] = instrument
+    fingerprints = {}
     for instrument in selected.values():
-        check_assets(instrument)
+        check_assets(instrument, fingerprints=fingerprints)
     return list(selected.values())

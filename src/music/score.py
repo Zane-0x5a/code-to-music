@@ -78,5 +78,6 @@ def timeline(score: Score, track: dict) -> list[dict]:
             note = pitch_number(event["pitch"])
             append(event["beat"], 2, [0x90, note, event["velocity"]])
             append(event["beat"] + event["duration"], 0, [0x80, note, 0])
-    append(score.data["length_beats"], 1, [0xB0, 64, 0])
+    if any(e["type"] == "cc" and e["controller"] == 64 for e in track["events"]):
+        append(score.data["length_beats"], 1, [0xB0, 64, 0])
     return sorted(result, key=lambda e: (e["frame"], e["order"]))

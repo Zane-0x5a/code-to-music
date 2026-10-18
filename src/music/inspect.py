@@ -70,8 +70,13 @@ def inspect_artifact(path: Path) -> dict:
     if report["status"] == "failed":
         original = report["error"]
         result["render_error_code"] = original["code"]
+        for item in report.get("qa_failures", [])[:8]:
+            location = item.get("track_id") or item["scope"]
+            result["issues"].append(f"{location}: {item['metric']}={item['actual']} "
+                                    f"(required {item['comparison']} {item['threshold']})"[:300])
         fail("E_RENDER_FAILED", f"Render failed ({original['code']}): {original['message'][:300]}", str(path),
-             f"Read error and native evidence in {path}; repair the reported cause and render to a fresh directory.", "render_failed")
+             f"Use data.issues for immediate QA diagnostics; full error and native evidence are in {path}. "
+             "Repair the reported cause and render to a fresh directory.", "render_failed")
     if report["status"] != "passed":
         fail("E_RENDER_INCOMPLETE", "Render report has not reached a passed or failed outcome.", str(path),
              "Wait for the render to finish or inspect its failure evidence; do not use incomplete output.", "render_incomplete")

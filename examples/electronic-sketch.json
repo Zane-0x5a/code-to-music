@@ -1,0 +1,475 @@
+{
+  "version": 1,
+  "title": "Factory electronic palette",
+  "tempo": 110,
+  "time_signature": [
+    4,
+    4
+  ],
+  "length_beats": 8,
+  "output": {
+    "sample_rate": 48000,
+    "tail_seconds": 8,
+    "master_gain_db": -8,
+    "stems": true,
+    "midi": true,
+    "intermediates": false
+  },
+  "tracks": [
+    {
+      "id": "ep",
+      "instrument": "surge-dx-ep",
+      "gain_db": -12,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 60,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 64,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 67,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 2,
+          "pitch": 60,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 2,
+          "pitch": 65,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 2,
+          "pitch": 69,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 59,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 62,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 67,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 6,
+          "pitch": 60,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 6,
+          "pitch": 64,
+          "duration": 1.5,
+          "velocity": 88
+        },
+        {
+          "type": "note",
+          "beat": 6,
+          "pitch": 67,
+          "duration": 1.5,
+          "velocity": 88
+        }
+      ]
+    },
+    {
+      "id": "bass",
+      "instrument": "surge-e-bass",
+      "gain_db": -12,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 36,
+          "duration": 0.6,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 1,
+          "pitch": 36,
+          "duration": 0.6,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 2,
+          "pitch": 41,
+          "duration": 0.6,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 3,
+          "pitch": 41,
+          "duration": 0.6,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 43,
+          "duration": 0.6,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 5,
+          "pitch": 43,
+          "duration": 0.6,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 6,
+          "pitch": 36,
+          "duration": 0.6,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 7,
+          "pitch": 36,
+          "duration": 0.6,
+          "velocity": 100
+        }
+      ]
+    },
+    {
+      "id": "pluck",
+      "instrument": "surge-nice-pluck",
+      "gain_db": -14,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0.5,
+          "pitch": 72,
+          "duration": 0.35,
+          "velocity": 82
+        },
+        {
+          "type": "note",
+          "beat": 1.5,
+          "pitch": 76,
+          "duration": 0.35,
+          "velocity": 82
+        },
+        {
+          "type": "note",
+          "beat": 2.5,
+          "pitch": 77,
+          "duration": 0.35,
+          "velocity": 82
+        },
+        {
+          "type": "note",
+          "beat": 3.5,
+          "pitch": 81,
+          "duration": 0.35,
+          "velocity": 82
+        },
+        {
+          "type": "note",
+          "beat": 4.5,
+          "pitch": 79,
+          "duration": 0.35,
+          "velocity": 82
+        },
+        {
+          "type": "note",
+          "beat": 5.5,
+          "pitch": 74,
+          "duration": 0.35,
+          "velocity": 82
+        },
+        {
+          "type": "note",
+          "beat": 6.5,
+          "pitch": 76,
+          "duration": 0.35,
+          "velocity": 82
+        },
+        {
+          "type": "note",
+          "beat": 7.5,
+          "pitch": 72,
+          "duration": 0.35,
+          "velocity": 82
+        }
+      ]
+    },
+    {
+      "id": "lead",
+      "instrument": "surge-classic-lead",
+      "gain_db": -18,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 72,
+          "duration": 1.4,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 2,
+          "pitch": 77,
+          "duration": 1.4,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 79,
+          "duration": 1.4,
+          "velocity": 90
+        },
+        {
+          "type": "note",
+          "beat": 6,
+          "pitch": 76,
+          "duration": 1.4,
+          "velocity": 90
+        }
+      ]
+    },
+    {
+      "id": "pad",
+      "instrument": "surge-fm-pad",
+      "gain_db": -16,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 60,
+          "duration": 7,
+          "velocity": 80
+        },
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 64,
+          "duration": 7,
+          "velocity": 80
+        },
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 67,
+          "duration": 7,
+          "velocity": 80
+        }
+      ]
+    },
+    {
+      "id": "drums",
+      "instrument": "avl-black-pearl",
+      "gain_db": -12,
+      "events": [
+        {
+          "type": "note",
+          "beat": 0,
+          "pitch": 36,
+          "duration": 0.15,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 2,
+          "pitch": 36,
+          "duration": 0.15,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 4,
+          "pitch": 36,
+          "duration": 0.15,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 6,
+          "pitch": 36,
+          "duration": 0.15,
+          "velocity": 100
+        },
+        {
+          "type": "note",
+          "beat": 1,
+          "pitch": 38,
+          "duration": 0.15,
+          "velocity": 95
+        },
+        {
+          "type": "note",
+          "beat": 3,
+          "pitch": 38,
+          "duration": 0.15,
+          "velocity": 95
+        },
+        {
+          "type": "note",
+          "beat": 5,
+          "pitch": 38,
+          "duration": 0.15,
+          "velocity": 95
+        },
+        {
+          "type": "note",
+          "beat": 7,
+          "pitch": 38,
+          "duration": 0.15,
+          "velocity": 95
+        },
+        {
+          "type": "note",
+          "beat": 0.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 0.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 1.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 1.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 2.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 2.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 3.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 3.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 4.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 4.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 5.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 5.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 6.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 6.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 7.0,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        },
+        {
+          "type": "note",
+          "beat": 7.5,
+          "pitch": 42,
+          "duration": 0.1,
+          "velocity": 64
+        }
+      ]
+    }
+  ]
+}

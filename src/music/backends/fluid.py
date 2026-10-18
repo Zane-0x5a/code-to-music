@@ -69,6 +69,10 @@ class Fluid:
                     result = self.noteon(self.synth, 0, first, second)
                 elif status == 0x80:
                     result = self.noteoff(self.synth, 0, first)
+                    # One-shot samples may have ended before their scheduled note-off.
+                    # FluidSynth reports no matching voice as a failure in that case.
+                    if result < 0:
+                        continue
                 else:
                     result = self.cc(self.synth, 0, first, second)
                 if result < 0:

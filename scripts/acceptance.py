@@ -10,6 +10,7 @@ import time
 from datetime import datetime
 import numpy as np
 import mido
+from music import __version__
 from music.audio import read_wav, write_wav, measure
 from music.backend import run_backend
 from music.errors import MusicError, read_json, write_json, fingerprint
@@ -45,7 +46,7 @@ def main():
                       stderr=process.stderr.decode("utf-8", errors="replace"))
         summary["commands"].append(record)
         write_json(evidence / "summary.json", summary)
-        assert result["version"] == 3 and result["tool_version"] == "0.3.0" and result["ok"] == success, record
+        assert result["version"] == 3 and result["tool_version"] == __version__ and result["ok"] == success, record
         assert process.returncode == (0 if success else 2), record
         if expected_code:
             assert result["error"]["code"] == expected_code, record
@@ -64,6 +65,19 @@ def main():
         assert len(json.dumps(snapshot).encode("utf-8")) <= 2048
 
     try:
+        from music.backends.juce_state import encode_memory_block, decode_memory_block, component_state, wrap_component
+        for size in (0, 1, 2, 3, 255, 1024):
+            block = bytes((n * 37) % 256 for n in range(size))
+            assert decode_memory_block(encode_memory_block(block)) == block
+            assert component_state(wrap_component(block)) == block
+        for damaged_state in (b"bad", b"VC2!\xff\xff\xff\xff", wrap_component(b"valid")[:12]):
+            try:
+                component_state(damaged_state)
+            except Exception:
+                pass
+            else:
+                raise AssertionError("Damaged state accepted")
+        summary["checks"].append(dict(name="JUCE binary state round trips and corrupt-container rejection", passed=True))
         historical_inspect = read_json(ROOT/"scripts/fixtures/inspect-cli-v2.json")
         Draft202012Validator(legacy_schema).validate(historical_inspect)
         assert not Draft202012Validator(envelope_schema).is_valid(historical_inspect)
@@ -99,6 +113,33 @@ def main():
         summary["checks"].append(dict(name="inspect gives bounded passing summary and full-report pointer", passed=True))
         summary["checks"].append(dict(name="inspect includes selected instrument IDs, versions and every asset SHA-256 without current config", passed=True))
         Draft202012Validator(report_schema).validate(read_json(output_a/"report.json"))
+        quiet = copy.deepcopy(source)
+        quiet["tracks"][1]["instrument"] = "salamander-piano"
+        quiet["tracks"][1]["gain_db"] = -15
+        quiet["output"]["intermediates"] = False
+        quiet_path = directory / "quiet accompaniment.json"
+        write_json(quiet_path, quiet)
+        quiet_output = directory / "quiet accompaniment render"
+        command(["render", str(quiet_path), "--output", str(quiet_output)])
+        quiet_report = read_json(quiet_output/"report.json")
+        assert quiet_report["tracks"][1]["qa"]["passed"]
+        assert quiet_report["tracks"][1]["qa"]["integrated_lufs"] < -45
+        assert quiet_report["audio"]["passed"]
+        summary["checks"].append(dict(name="quiet but audible stem does not inherit master loudness floor", passed=True,
+                                     stem_lufs=quiet_report["tracks"][1]["qa"]["integrated_lufs"]))
+        too_quiet = copy.deepcopy(quiet)
+        too_quiet["output"]["master_gain_db"] = -50
+        too_quiet_path = directory / "quiet master.json"
+        write_json(too_quiet_path, too_quiet)
+        failed_qa = command(["render", str(too_quiet_path), "--output", str(directory/"quiet master render")],
+                            "E_AUDIO_QA", success=False)
+        diagnostics = failed_qa["data"]["qa_failures"]
+        assert diagnostics and any(item["scope"] == "master" and item["metric"] == "integrated_lufs" for item in diagnostics)
+        qa_report = Path(failed_qa["data"]["report_path"])
+        assert qa_report.is_file() and read_json(qa_report)["qa_failures"] == diagnostics
+        failed_qa_inspect = command(["inspect", str(qa_report)], "E_RENDER_FAILED", success=False)
+        assert any("integrated_lufs" in item for item in failed_qa_inspect["data"]["issues"])
+        summary["checks"].append(dict(name="failed master names metric, actual, threshold and report in one response", passed=True))
         command(["render", str(score_path), "--output", str(output_b)])
         for name in ["master.wav", "stems/piano.wav", "stems/synth.wav", "score.mid"]:
             first, second = fingerprint(output_a/name), fingerprint(output_b/name)
@@ -330,12 +371,28 @@ def main():
             process_count = subprocess.run(["powershell", "-NoProfile", "-Command", query], capture_output=True, check=True, timeout=20)
             assert int(process_count.stdout.decode().strip()) == 0, process_count.stdout
         summary["checks"].append(dict(name="native timeout terminates worker process tree", passed=True))
-        # Exercise low/mid/high pitch, velocity endpoints and CC64 using the actual native adapters.
+        # Exercise each instrument within its declared range using the actual native adapter.
+        def isolated_peaks(instrument, pitches, rate):
+            peaks = []
+            for pitch in pitches:
+                for velocity in (1, 64, 127):
+                    events = [dict(frame=0, data=[0x90, pitch, velocity]),
+                              dict(frame=round(rate*.25), data=[0x80, pitch, 0])]
+                    audio, _ = run_backend(instrument, events, rate, rate,
+                        evidence/"isolated-velocity"/instrument["id"]/str(rate)/f"{pitch}-{velocity}")
+                    peaks.append(dict(pitch=pitch, velocity=velocity,
+                                      peak=float(np.max(np.abs(audio[:, :round(rate*.25)])))))
+            return peaks
+
         for instrument in catalog(config).values():
+            is_drum = instrument["id"].startswith("avl-")
+            is_sfz = instrument["backend"] == "sfz"
+            low, high = instrument["capabilities"]["pitch_range"]
+            pitches = [36, 38, 42] if is_drum else [low, instrument.get("probe_note", 60), high]
             events = []
             segments = []
             index = 0
-            for pitch in [21,60,108]:
+            for pitch in pitches:
                 for velocity in [1,64,127]:
                     frame = index * 48000
                     events += [dict(frame=frame, data=[0x90,pitch,velocity]), dict(frame=frame+12000, data=[0x80,pitch,0])]
@@ -343,21 +400,135 @@ def main():
                     index += 1
             audio, details = run_backend(instrument, events, 48000, index*48000, evidence/"capabilities"/instrument["id"])
             peaks = [dict(pitch=p, velocity=v, peak=float(np.max(np.abs(audio[:,frame:frame+12000])))) for p,v,frame in segments]
+            if "factory" in instrument["assets"]:
+                peaks = isolated_peaks(instrument, pitches, 48000)
             assert all(x["peak"] > 1e-7 for x in peaks), peaks
-            # MIDI delivery alone is insufficient: admitted velocity must
-            # produce an audible amplitude response in each actual profile.
             for group in (peaks[0:3], peaks[3:6], peaks[6:9]):
-                assert group[0]["peak"] < group[1]["peak"] < group[2]["peak"], group
-            note_events = [dict(frame=0,data=[0x90,60,100]), dict(frame=12000,data=[0x80,60,0])]
-            plain, _ = run_backend(instrument, note_events, 48000, 96000, evidence/"pedal"/instrument["id"]/"plain")
-            pedal_events = [dict(frame=0,data=[0xB0,64,127]), *note_events, dict(frame=72000,data=[0xB0,64,0])]
-            pedal, _ = run_backend(instrument, pedal_events, 48000, 96000, evidence/"pedal"/instrument["id"]/"pedal")
-            off_rms = float(np.sqrt(np.mean(plain[:,48000:72000] ** 2)))
-            held_rms = float(np.sqrt(np.mean(pedal[:,48000:72000] ** 2)))
-            assert held_rms > max(off_rms*1.1,1e-7), (instrument["id"], off_rms, held_rms)
-            summary["checks"].append(dict(name=f"capabilities:{instrument['id']}", passed=True, sampled_grid=peaks,
-                                           velocity_response="Strictly increasing peak at velocities 1,64,127 for pitches 21,60,108",
-                                           cc64=dict(note_off_rms=off_rms, held_rms=held_rms), backend=details))
+                if is_drum:
+                    assert group[0]["peak"] != group[2]["peak"], group
+                else:
+                    assert group[0]["peak"] < group[1]["peak"] < group[2]["peak"], group
+            result = dict(name=f"capabilities:{instrument['id']}", passed=True, sampled_grid=peaks,
+                          velocity_response="Distinct endpoint peaks for sampled drum notes" if is_drum else
+                          f"Strictly increasing peak at velocities 1,64,127 for pitches {pitches}", backend=details)
+            if 64 in instrument["capabilities"]["controllers"]:
+                note_events = [dict(frame=0,data=[0x90,60,100]), dict(frame=12000,data=[0x80,60,0])]
+                plain, _ = run_backend(instrument, note_events, 48000, 96000, evidence/"pedal"/instrument["id"]/"plain")
+                pedal_events = [dict(frame=0,data=[0xB0,64,127]), *note_events, dict(frame=72000,data=[0xB0,64,0])]
+                pedal, _ = run_backend(instrument, pedal_events, 48000, 96000, evidence/"pedal"/instrument["id"]/"pedal")
+                off_rms = float(np.sqrt(np.mean(plain[:,48000:72000] ** 2)))
+                held_rms = float(np.sqrt(np.mean(pedal[:,48000:72000] ** 2)))
+                assert held_rms > max(off_rms*1.1,1e-7), (instrument["id"], off_rms, held_rms)
+                result["cc64"] = dict(note_off_rms=off_rms, held_rms=held_rms)
+            summary["checks"].append(result)
+            if "factory" in instrument["assets"]:
+                for rate in (48000, 44100):
+                    scaled_events = [dict(frame=round(e["frame"] * rate / 48000), data=e["data"]) for e in events]
+                    reference, _ = run_backend(instrument, scaled_events, rate, index*rate,
+                                              evidence/"factory-repeat"/instrument["id"]/str(rate)/"A")
+                    repeated, _ = run_backend(instrument, scaled_events, rate, index*rate,
+                                             evidence/"factory-repeat"/instrument["id"]/str(rate)/"B")
+                    difference = float(np.max(np.abs(reference-repeated)))
+                    assert difference <= 4/8388608, (instrument["id"], rate, difference)
+                    rate_peaks = [p["peak"] for p in (peaks if rate == 48000 else isolated_peaks(instrument, pitches, rate))]
+                    assert all(p > 1e-7 for p in rate_peaks), rate_peaks
+                    for start in (0,3,6):
+                        assert rate_peaks[start] < rate_peaks[start+1] < rate_peaks[start+2], (instrument["id"],rate,rate_peaks)
+                    summary["checks"].append(dict(name=f"factory-grid-repeat:{instrument['id']}:{rate}", passed=True,
+                                                  maximum_sample_difference=difference, peaks=rate_peaks))
+            if is_drum:
+                keys = list(range(low, high + 1))
+                key_events = [dict(frame=i*24000, data=[0x90, key, 100]) for i, key in enumerate(keys)]
+                key_audio, _ = run_backend(instrument, key_events, 48000, len(keys)*24000,
+                                           evidence/"all-drum-keys"/instrument["id"])
+                key_peaks = {str(key): float(np.max(np.abs(key_audio[:, i*24000:(i+1)*24000])))
+                             for i, key in enumerate(keys)}
+                assert all(peak > 1e-7 for peak in key_peaks.values()), key_peaks
+                repeated, _ = run_backend(instrument, key_events, 48000, len(keys)*24000,
+                                          evidence/"all-drum-keys-repeat"/instrument["id"])
+                difference = float(np.max(np.abs(key_audio-repeated)))
+                assert difference <= 4/8388608, (instrument["id"], difference)
+                summary["checks"].append(dict(name=f"all-keys:{instrument['id']}", passed=True, peaks=key_peaks,
+                                              maximum_sample_difference=difference))
+            if is_sfz:
+                keys = list(range(low, high + 1))
+                key_events = [event for i, key in enumerate(keys) for event in
+                              (dict(frame=i*24000, data=[0x90, key, 96]),
+                               dict(frame=i*24000+12000, data=[0x80, key, 0]))]
+                key_audio, _ = run_backend(instrument, key_events, 48000, len(keys)*24000,
+                                           evidence/"all-sfz-keys"/instrument["id"])
+                key_peaks = {str(key): float(np.max(np.abs(key_audio[:, i*24000:(i+1)*24000])))
+                             for i, key in enumerate(keys)}
+                assert all(peak > 1e-7 for peak in key_peaks.values()), key_peaks
+                repeated, _ = run_backend(instrument, key_events, 48000, len(keys)*24000,
+                                          evidence/"all-sfz-keys-repeat"/instrument["id"])
+                difference = float(np.max(np.abs(key_audio-repeated)))
+                assert difference <= 4/8388608, (instrument["id"], difference)
+                summary["checks"].append(dict(name=f"all-keys:{instrument['id']}", passed=True, peaks=key_peaks,
+                                              maximum_sample_difference=difference))
+            write_json(evidence/"summary.json", summary)
+            print(f"capabilities + repeatability: {instrument['id']} OK", flush=True)
+        # Complete published scores: chords, tails, stems and a deliberate target-only edit.
+        for example, rates in (("orchestra-sketch", (48000, 44100)), ("electronic-sketch", (48000, 44100))):
+            for rate in rates:
+                sketch = read_json(ROOT/"examples"/(example+".json"))
+                sketch["output"]["sample_rate"] = rate
+                sketch_path = directory/f"{example}-{rate}.json"
+                write_json(sketch_path, sketch)
+                outputs = [directory/f"{example}-{rate}-{n}" for n in (1, 2)]
+                command(["validate", str(sketch_path)])
+                for destination in outputs:
+                    command(["render", str(sketch_path), "--output", str(destination)])
+                    command(["inspect", str(destination)])
+                differences = {}
+                for filename in ["master.wav", *[f"stems/{track['id']}.wav" for track in sketch["tracks"]]]:
+                    a, _ = read_wav(outputs[0]/filename)
+                    b, _ = read_wav(outputs[1]/filename)
+                    differences[filename] = float(np.max(np.abs(a-b)))
+                    assert differences[filename] <= 4/8388608, (example, rate, filename, differences)
+                if rate == 48000:
+                    sketch["tracks"][0]["events"][0]["pitch"] += 2
+                    write_json(sketch_path, sketch)
+                    destination = directory/f"{example}-{rate}-edited"
+                    command(["render", str(sketch_path), "--output", str(destination)])
+                    command(["inspect", str(destination)])
+                    for index, track in enumerate(sketch["tracks"]):
+                        a, _ = read_wav(outputs[0]/f"stems/{track['id']}.wav")
+                        b, _ = read_wav(destination/f"stems/{track['id']}.wav")
+                        difference = float(np.max(np.abs(a-b)))
+                        assert difference > 1e-5 if index == 0 else difference <= 4/8388608, (example, track["id"], difference)
+                summary["checks"].append(dict(name=f"published-score:{example}:{rate}", passed=True,
+                                              differences=differences, target_edit_verified=rate==48000))
+        # A familiar beat-oriented score must pass the public CLI contract for both kits.
+        for kit in ("avl-red-zeppelin", "avl-black-pearl"):
+            beat = dict(version=1, title=f"Drum acceptance: {kit}", tempo=110,
+                        time_signature=[4, 4], length_beats=8,
+                        output=dict(sample_rate=48000, tail_seconds=2, master_gain_db=-6,
+                                    stems=True, midi=True, intermediates=False),
+                        tracks=[dict(id="drums", instrument=kit, events=[
+                            *[dict(type="note", beat=n, duration=.2, pitch=36, velocity=105) for n in (0, 2, 4, 6)],
+                            *[dict(type="note", beat=n, duration=.2, pitch=38, velocity=100) for n in (1, 3, 5, 7)],
+                            *[dict(type="note", beat=n/2, duration=.1, pitch=42, velocity=65) for n in range(16)]])])
+            beat_path = directory / f"{kit} beat.json"
+            write_json(beat_path, beat)
+            outputs = [directory / f"{kit} beat {n}" for n in (1, 2)]
+            for destination in outputs:
+                command(["validate", str(beat_path)])
+                command(["render", str(beat_path), "--output", str(destination)])
+                inspected_beat = command(["inspect", str(destination)])
+                assert inspected_beat["data"]["status"] == "passed"
+            drum_audio_a, _ = read_wav(outputs[0]/"master.wav")
+            drum_audio_b, _ = read_wav(outputs[1]/"master.wav")
+            difference = float(np.max(np.abs(drum_audio_a - drum_audio_b)))
+            assert difference <= 4/8388608, (kit, difference)
+            midi = mido.MidiFile(outputs[0]/"score.mid")
+            note_ons = [msg.note for track in midi.tracks for msg in track if msg.type == "note_on" and msg.velocity > 0]
+            assert len(note_ons) == 24 and set(note_ons) == {36, 38, 42}, note_ons
+            assert all(msg.channel == 9 for track in midi.tracks for msg in track if not msg.is_meta)
+            assert not any(msg.type == "control_change" for track in midi.tracks for msg in track)
+            summary["checks"].append(dict(name=f"beat:{kit}", passed=True, midi_notes=len(note_ons),
+                                           maximum_sample_difference=difference,
+                                           output=str(outputs[0])))
         # Real native resource paths with both non-ASCII text and spaces.
         native_dir = directory / "本机 音源"
         native_dir.mkdir()

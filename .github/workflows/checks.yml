@@ -1,0 +1,40 @@
+name: Package and CLI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: windows-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          architecture: x64
+          cache: pip
+          cache-dependency-path: |
+            requirements.lock
+            pyproject.toml
+      - name: Install Python dependencies
+        run: python -m pip install -r requirements.lock
+      - name: Build wheel
+        run: python -m pip wheel --no-deps --wheel-dir dist .
+      - name: Install wheel
+        run: |
+          $wheels = @(Get-ChildItem -LiteralPath dist -Filter '*.whl')
+          if ($wheels.Count -ne 1) { throw 'Expected exactly one project wheel' }
+          python -m pip install --no-deps $wheels[0].FullName
+      - name: Check dependency consistency
+        run: python -m pip check
+      - name: Check installed package and CLI without instrument downloads
+        run: python scripts/check_package.py
